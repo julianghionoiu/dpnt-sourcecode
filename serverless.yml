@@ -1,8 +1,16 @@
+################################################################################
+#
+################################################################################
 service: srcs-github-export
 
 provider:
     name: aws
     runtime: java8
+    stage: ${opt:stage, 'dev'}
+    environment:
+        #For adding github URI, the format should be
+        #    https://username:personal_access_token@github.com/username/repo
+        GIT_URI: ${file(config.{$self:provider.stage}.json):GIT_URI}
 
 package:
     artifact: build/distributions/tdl-srcs-github-export.zip
