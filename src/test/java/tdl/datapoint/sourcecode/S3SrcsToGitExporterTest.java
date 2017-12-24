@@ -64,6 +64,7 @@ public class S3SrcsToGitExporterTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private void createBucketIfNotExists(AmazonS3 client, String bucket) {
         if (!client.doesBucketExist(bucket)) {
             client.createBucket(bucket);

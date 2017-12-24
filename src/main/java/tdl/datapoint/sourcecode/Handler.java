@@ -9,12 +9,12 @@ import java.util.logging.Level;
 public class Handler implements RequestHandler<Map<String, Object>, Response> {
 
     //private static final Logger LOG = Logger.getLogger(Handler.class);
-
     @Override
     public Response handleRequest(Map<String, Object> input, Context context) {
         try {
             S3BucketEvent event = new S3BucketEvent(input);
-            S3SrcsToGitExporter exporter = new S3SrcsToGitExporter(event.getBucket(), event.getKey(), getGitUri());
+            SrcsGithubRepo repo = new SrcsGithubRepo(event.getKey());
+            S3SrcsToGitExporter exporter = new S3SrcsToGitExporter(event.getBucket(), event.getKey(), repo.getUri());
             exporter.export();
             return new Response("ok");
         } catch (Exception ex) {
@@ -23,7 +23,4 @@ public class Handler implements RequestHandler<Map<String, Object>, Response> {
         }
     }
 
-    public String getGitUri() {
-        return System.getenv("GIT_URI");
-    }
 }

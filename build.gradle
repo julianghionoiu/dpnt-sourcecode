@@ -22,11 +22,19 @@ dependencies {
         'org.eclipse.jgit:org.eclipse.jgit:4.8.0.201706111038-r',
         'org.eclipse.jgit:org.eclipse.jgit.archive:4.8.0.201706111038-r',
         'ro.ghionoiu:dev-sourcecode-record:0.0.10',
+        'org.eclipse.mylyn.github:org.eclipse.egit.github.core:2.1.5'
     )
     
     testCompile(
-        'junit:junit:4.12'
+        'junit:junit:4.12',
+        'com.tngtech.java:junit-dataprovider:1.9.3',
+        'com.github.tomakehurst:wiremock:2.12.0'
     )
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
 }
 
 

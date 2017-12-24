@@ -16,6 +16,7 @@ public class S3BucketEvent {
         parseRequest();
     }
 
+    @SuppressWarnings("unchecked")
     private void parseRequest() {
         Map<String, Object> record = ((List<Map<String, Object>>) request.get("Records")).get(0);
         Map<String, Object> s3 = (Map<String, Object>) record.get("s3");
