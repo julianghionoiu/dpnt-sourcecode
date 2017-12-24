@@ -3,7 +3,7 @@ package tdl.datapoint.sourcecode;
 import java.util.List;
 import java.util.Map;
 
-public class Event {
+public class S3BucketEvent {
 
     private final Map<String, Object> request;
 
@@ -11,7 +11,7 @@ public class Event {
 
     private String key;
 
-    public Event(Map<String, Object> request) {
+    public S3BucketEvent(Map<String, Object> request) {
         this.request = request;
         parseRequest();
     }

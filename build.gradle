@@ -1,22 +1,5 @@
 apply plugin: 'java'
 
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-    dependencies {
-        classpath "io.spring.gradle:dependency-management-plugin:1.0.3.RELEASE"
-    }
-}
-
-apply plugin: "io.spring.dependency-management"
-
-dependencyManagement {
-    imports {
-        mavenBom 'com.amazonaws:aws-java-sdk-bom:1.11.228'
-    }
-}
-
 repositories {
     mavenCentral()
     maven {
@@ -31,13 +14,18 @@ dependencies {
     compile (
         'com.amazonaws:aws-lambda-java-core:1.1.0',
         'com.amazonaws:aws-lambda-java-log4j:1.0.0',
-        'com.amazonaws:aws-java-sdk-s3',
+        'com.amazonaws:aws-java-sdk-s3:1.11.254',
+        'commons-io:commons-io:2.5',
         'com.fasterxml.jackson.core:jackson-core:2.8.5',
         'com.fasterxml.jackson.core:jackson-databind:2.8.5',
         'com.fasterxml.jackson.core:jackson-annotations:2.8.5',
         'org.eclipse.jgit:org.eclipse.jgit:4.8.0.201706111038-r',
         'org.eclipse.jgit:org.eclipse.jgit.archive:4.8.0.201706111038-r',
         'ro.ghionoiu:dev-sourcecode-record:0.0.10',
+    )
+    
+    testCompile(
+        'junit:junit:4.12'
     )
 }
 
