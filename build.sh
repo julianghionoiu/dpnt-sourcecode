@@ -33,9 +33,10 @@ echo $CUR_DIR
 cd $CUR_DIR
 
 echo "Running test"
-./gradlew --rerun-tasks test --info
+./gradlew --rerun-tasks test jacocoTestReport --info
 
 echo "Killing server"
 ps ax | grep minio | awk '{print $1}' | head -n 1 | xargs kill
 ps ax | grep git-daemon | awk '{print $1}' | head -n 1 | xargs kill
 sleep 3
+rm -rf $TMPDIR

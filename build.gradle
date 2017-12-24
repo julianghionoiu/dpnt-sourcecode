@@ -29,6 +29,9 @@ dependencies {
     )
 }
 
+
+apply plugin: "jacoco"
+
 // Task for building the zip file for upload
 task buildZip(type: Zip) {
     // TODO: Rename to other when adding new function
