@@ -4,6 +4,7 @@ import java.io.IOException;
 import org.eclipse.egit.github.core.Repository;
 import org.eclipse.egit.github.core.User;
 import org.eclipse.egit.github.core.client.GitHubClient;
+import org.eclipse.egit.github.core.client.RequestException;
 import org.eclipse.egit.github.core.service.RepositoryService;
 
 public final class SrcsGithubRepo {
@@ -18,17 +19,17 @@ public final class SrcsGithubRepo {
 
     private Repository repository;
 
-    public SrcsGithubRepo(String s3Key) {
-        this.repoName = parseS3KeyToRepositoryName(s3Key);
-        this.client = new GitHubClient();
-        this.username = getDefaultUser();
+    public SrcsGithubRepo(String repoName) {
+        this.repoName = repoName;
+        this.client = createDefaultGithubClient();
+        this.username = getDefaultUsername();
         this.service = new RepositoryService(client);
     }
 
-    public SrcsGithubRepo(String s3Key, GitHubClient client) {
-        this.repoName = parseS3KeyToRepositoryName(s3Key);
+    public SrcsGithubRepo(String repoName, GitHubClient client) {
+        this.repoName = repoName;
         this.client = client;
-        this.username = getDefaultUser();
+        this.username = getDefaultUsername();
         this.service = new RepositoryService(client);
     }
 
@@ -41,9 +42,9 @@ public final class SrcsGithubRepo {
         }
     }
 
-    public Repository createNewRepository() throws IOException {
+    public Repository createNewRepository() throws IOException, RequestException {
         repository = new Repository();
-        repository.setName(getRepositoryName());
+        repository.setName(getRepoName());
         User owner = new User();
         owner.setName(username);
         repository.setOwner(owner);
@@ -51,7 +52,7 @@ public final class SrcsGithubRepo {
         return repository;
     }
 
-    public String getRepositoryName() {
+    public String getRepoName() {
         return repoName;
     }
 
@@ -59,12 +60,22 @@ public final class SrcsGithubRepo {
         return repository;
     }
 
-    public String getDefaultUser() {
+    public String getDefaultUsername() {
         return System.getenv("GITHUB_DEFAULT_USER");
     }
 
+    public GitHubClient createDefaultGithubClient() {
+        GitHubClient defaultClient = new GitHubClient();
+        defaultClient.setOAuth2Token(getDefaultGithubToken());
+        return defaultClient;
+    }
+
+    public String getDefaultGithubToken() {
+        return System.getenv("GITHUB_TOKEN");
+    }
+
     public String getUri() {
-        return "https://github.com/" + username + "/" + getRepositoryName();
+        return "https://github.com/" + username + "/" + getRepoName();
     }
 
     public static String parseS3KeyToRepositoryName(String s3Key) {

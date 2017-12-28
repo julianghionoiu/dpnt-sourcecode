@@ -13,7 +13,7 @@ public class Handler implements RequestHandler<Map<String, Object>, Response> {
     public Response handleRequest(Map<String, Object> input, Context context) {
         try {
             S3BucketEvent event = new S3BucketEvent(input);
-            SrcsGithubRepo repo = new SrcsGithubRepo(event.getKey());
+            SrcsGithubRepo repo = createRepository(event.getKey());
             S3SrcsToGitExporter exporter = new S3SrcsToGitExporter(event.getBucket(), event.getKey(), repo.getUri());
             exporter.export();
             return new Response("ok");
@@ -21,6 +21,15 @@ public class Handler implements RequestHandler<Map<String, Object>, Response> {
             java.util.logging.Logger.getLogger(Handler.class.getName()).log(Level.SEVERE, null, ex);
             return new Response("error: " + ex.getMessage());
         }
+    }
+
+    private static SrcsGithubRepo createRepository(String s3Key) throws Exception {
+        String repoName = SrcsGithubRepo.parseS3KeyToRepositoryName(s3Key);
+        SrcsGithubRepo repo = new SrcsGithubRepo(repoName);
+        if (!repo.doesGithubRepoExist()) {
+            repo.createNewRepository();
+        }
+        return repo;
     }
 
 }
