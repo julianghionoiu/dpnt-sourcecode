@@ -26,7 +26,7 @@ public class S3SrcsToGitExporterTest {
     public TemporaryFolder folder = new TemporaryFolder();
 
     @Test
-    public void export() throws GitAPIException, Exception {
+    public void export() throws Exception {
         AmazonS3 client = createS3Client();
         createBucketIfNotExists(client, BUCKET);
         Path path = Paths.get("src/test/resources/test.srcs");
