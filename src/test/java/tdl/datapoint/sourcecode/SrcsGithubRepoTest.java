@@ -3,13 +3,18 @@ package tdl.datapoint.sourcecode;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.eclipse.egit.github.core.client.GitHubClient;
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import com.tngtech.java.junit.dataprovider.DataProvider;
+import com.tngtech.java.junit.dataprovider.DataProviderRunner;
+import com.tngtech.java.junit.dataprovider.UseDataProvider;
 import java.io.IOException;
 import org.eclipse.egit.github.core.Repository;
 import org.junit.Rule;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
+import org.junit.runner.RunWith;
 
+@RunWith(DataProviderRunner.class)
 public class SrcsGithubRepoTest {
 
     @Rule
@@ -19,7 +24,7 @@ public class SrcsGithubRepoTest {
     public EnvironmentVariables environmentVariables = new EnvironmentVariables();
 
     @Test
-    public void testDoesGithubRepoExistForKeyShouldReturnTrue() {
+    public void doesGithubRepoExistForKeyShouldReturnTrue() {
         stubFor(get(urlEqualTo("/api/v3/repos/user1/repository"))
                 .withHeader("Accept", equalTo("application/vnd.github.beta+json"))
                 .willReturn(aResponse()
@@ -33,7 +38,7 @@ public class SrcsGithubRepoTest {
     }
 
     @Test
-    public void testDoesGithubRepoExistShouldReturnFalse() {
+    public void doesGithubRepoExistShouldReturnFalse() {
         stubFor(get(urlEqualTo("/api/v3/repos/user1/repository"))
                 .withHeader("Accept", equalTo("application/vnd.github.beta+json"))
                 .willReturn(aResponse()
@@ -44,9 +49,14 @@ public class SrcsGithubRepoTest {
         SrcsGithubRepo repo = new SrcsGithubRepo("repository", client);
         assertFalse(repo.doesGithubRepoExist());
     }
+    @Test
+    public void parseS3KeyToRepositoryName() {
+        assertEquals("username", SrcsGithubRepo.parseS3KeyToRepositoryName("challenge/username/file.srcs"));
+        assertEquals("user1", SrcsGithubRepo.parseS3KeyToRepositoryName("challenge/user1/file.srcs"));
+    }
 
     @Test
-    public void testCreateNewRepository() throws IOException {
+    public void createNewRepository() throws IOException {
         String result = "{"
                 + "  \"id\": 1296269,"
                 + "  \"owner\": {"

@@ -8,7 +8,7 @@ import org.eclipse.egit.github.core.service.RepositoryService;
 
 public final class SrcsGithubRepo {
 
-    private final String s3Key;
+    private final String repoName;
 
     private final String username;
 
@@ -19,14 +19,14 @@ public final class SrcsGithubRepo {
     private Repository repository;
 
     public SrcsGithubRepo(String s3Key) {
-        this.s3Key = s3Key;
+        this.repoName = parseS3KeyToRepositoryName(s3Key);
         this.client = new GitHubClient();
         this.username = getDefaultUser();
         this.service = new RepositoryService(client);
     }
 
     public SrcsGithubRepo(String s3Key, GitHubClient client) {
-        this.s3Key = s3Key;
+        this.repoName = parseS3KeyToRepositoryName(s3Key);
         this.client = client;
         this.username = getDefaultUser();
         this.service = new RepositoryService(client);
@@ -34,7 +34,7 @@ public final class SrcsGithubRepo {
 
     public boolean doesGithubRepoExist() {
         try {
-            repository = service.getRepository(username, s3Key);
+            repository = service.getRepository(username, repoName);
             return repository.getId() > 0;
         } catch (IOException ex) {
             return false;
@@ -52,7 +52,7 @@ public final class SrcsGithubRepo {
     }
 
     public String getRepositoryName() {
-        return s3Key;
+        return repoName;
     }
 
     public Repository getRepository() {
@@ -64,11 +64,10 @@ public final class SrcsGithubRepo {
     }
 
     public String getUri() {
-        String repository = getRepositoryName();
-        return "https://github.com/" + username + "/" + repository;
+        return "https://github.com/" + username + "/" + getRepositoryName();
     }
 
     public static String parseS3KeyToRepositoryName(String s3Key) {
-        return "";
+        return s3Key.split("/")[1];
     }
 }
