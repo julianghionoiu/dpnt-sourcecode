@@ -33,6 +33,14 @@ public final class SrcsGithubRepo {
         this.service = new RepositoryService(client);
     }
 
+    public void createNewRepositoryIfNotExists() throws IOException {
+        try {
+            createNewRepository();
+        } catch (RequestException e) {
+            //DO NOTHING
+        }
+    }
+
     public boolean doesGithubRepoExist() {
         try {
             repository = service.getRepository(username, repoName);

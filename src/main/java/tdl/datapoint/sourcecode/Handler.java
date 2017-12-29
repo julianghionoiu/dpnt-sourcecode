@@ -14,8 +14,10 @@ public class Handler implements RequestHandler<Map<String, Object>, Response> {
         try {
             S3BucketEvent event = new S3BucketEvent(input);
             SrcsGithubRepo repo = createRepository(event.getKey());
-            S3SrcsToGitExporter exporter = new S3SrcsToGitExporter(event.getBucket(), event.getKey(), repo.getUri());
+            String uri = repo.getUri();
+            S3SrcsToGitExporter exporter = new S3SrcsToGitExporter(event.getBucket(), event.getKey(), uri);
             exporter.export();
+            sendGithubUrlToQueue(uri);
             return new Response("ok");
         } catch (Exception ex) {
             java.util.logging.Logger.getLogger(Handler.class.getName()).log(Level.SEVERE, null, ex);
@@ -26,10 +28,13 @@ public class Handler implements RequestHandler<Map<String, Object>, Response> {
     private static SrcsGithubRepo createRepository(String s3Key) throws Exception {
         String repoName = SrcsGithubRepo.parseS3KeyToRepositoryName(s3Key);
         SrcsGithubRepo repo = new SrcsGithubRepo(repoName);
-        if (!repo.doesGithubRepoExist()) {
-            repo.createNewRepository();
-        }
+        repo.createNewRepositoryIfNotExists();
         return repo;
+    }
+
+    private static void sendGithubUrlToQueue(String url) {
+        SQSMessageQueue queue = new SQSMessageQueue();
+        queue.send(url);
     }
 
 }
