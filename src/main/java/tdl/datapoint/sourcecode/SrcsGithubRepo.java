@@ -35,10 +35,10 @@ public class SrcsGithubRepo {
         this.service = new RepositoryService(client);
     }
 
-    public void createNewRepositoryIfNotExists() throws IOException {
+    public void createNewRepositoryIfNotExists() {
         try {
             createNewRepository();
-        } catch (RequestException e) {
+        } catch (IOException e) {
             //DO NOTHING
         }
     }

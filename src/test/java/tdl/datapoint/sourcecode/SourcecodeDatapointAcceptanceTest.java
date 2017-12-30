@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Rule;
@@ -34,9 +35,9 @@ public class SourcecodeDatapointAcceptanceTest {
     private static final String GIT_URI = "git://localhost:1234/";
 
     private static final String KEY = "challenge/test3/file.srcs";
-    
+
     private static final String GITHUB_USERNAME = "dpnttest";
-    
+
     private static final String GITHUB_TOKEN = "test";
 
     @Rule
@@ -48,10 +49,81 @@ public class SourcecodeDatapointAcceptanceTest {
     @Rule
     public TemporaryFolder folder = new TemporaryFolder();
 
+    private AmazonSQS sqsClient;
+
+    private AmazonS3 s3Client;
+
+    private String queueUrl;
+
     @Before
     public void setUp() {
         environmentVariables.set("GITHUB_USERNAME", GITHUB_USERNAME);
         environmentVariables.set("GITHUB_TOKEN", GITHUB_TOKEN);
+    }
+
+    private S3BucketEvent createEvent() {
+        S3BucketEvent event = mock(S3BucketEvent.class);
+        when(event.getBucket())
+                .thenReturn(BUCKET);
+        when(event.getKey())
+                .thenReturn(KEY);
+        return event;
+    }
+
+    private Handler mockHandler() throws IOException, GitAPIException, Exception {
+        Handler handler = spy(Handler.class);
+
+        when(handler.createDefaultGithubClient())
+                .thenReturn(ServiceMock.createGithubClient());
+
+        Git git = Git.cloneRepository()
+                .setURI(GIT_URI)
+                .setDirectory(folder.newFolder())
+                .call();
+        doReturn(git)
+                .when(handler)
+                .getGitRepo(any());
+
+        s3Client = ServiceMock.createS3Client();
+        when(handler.createDefaultS3Client())
+                .thenReturn(s3Client);
+        sqsClient = ServiceMock.createSQSClient();
+        when(handler.createDefaultSQSClient())
+                .thenReturn(sqsClient);
+
+        Path path = Paths.get("src/test/resources/test.srcs");
+        s3Client.putObject(BUCKET, KEY, path.toFile());
+        createBucketIfNotExists(s3Client, "localbucket");
+
+        String queueName = "queue2";
+        GetQueueUrlResult queueUrlResult;
+        try {
+            queueUrlResult = sqsClient.getQueueUrl(queueName);
+        } catch (QueueDoesNotExistException e) {
+            sqsClient.createQueue(queueName);
+            queueUrlResult = sqsClient.getQueueUrl(queueName);
+        }
+        queueUrl = queueUrlResult.getQueueUrl();
+        PurgeQueueRequest purgeQueueRequest = new PurgeQueueRequest(queueUrl);
+        sqsClient.purgeQueue(purgeQueueRequest);
+
+        environmentVariables.set("SQS_QUEUE_URL", queueUrl);
+        return handler;
+    }
+
+    private void mockNewRepoGithubApiResponse() {
+        stubFor(get(urlEqualTo("/api/v3/repos/user1/repository"))
+                .withHeader("Accept", equalTo("application/vnd.github.beta+json"))
+                .willReturn(aResponse()
+                        .withStatus(400))
+        );
+        String result = readResourceFile("create_new_repository_result.json");
+        stubFor(post(urlEqualTo("/api/v3/user/repos"))
+                .withHeader("Accept", equalTo("application/vnd.github.beta+json"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withBody(result))
+        );
     }
 
     @Test
@@ -60,8 +132,6 @@ public class SourcecodeDatapointAcceptanceTest {
          * Setup: - an existing S3 bucket (Minio) - no initial repo - an SQS
          * Event queue (ElasticMq)
          */
-
-        environmentVariables.set("name1", "value1");
 
         /**
          * Input:
@@ -81,64 +151,9 @@ public class SourcecodeDatapointAcceptanceTest {
          * the commits - we push the commits - we push the URL as an event to
          * the SQS Queue
          */
-        Handler handler = spy(Handler.class);
-
-        S3BucketEvent event = mock(S3BucketEvent.class);
-        when(event.getBucket())
-                .thenReturn(BUCKET);
-        when(event.getKey())
-                .thenReturn(KEY);
-
-        when(handler.createDefaultGithubClient())
-                .thenReturn(ServiceMock.createGithubClient());
-
-        Git git = Git.cloneRepository()
-                .setURI(GIT_URI)
-                .setDirectory(folder.newFolder())
-                .call();
-        doReturn(git)
-                .when(handler)
-                .getGitRepo(any());
-
-        AmazonS3 s3client = ServiceMock.createS3Client();
-        when(handler.createDefaultS3Client())
-                .thenReturn(s3client);
-        AmazonSQS sqsClient = ServiceMock.createSQSClient();
-        when(handler.createDefaultSQSClient())
-                .thenReturn(sqsClient);
-
-        Path path = Paths.get("src/test/resources/test.srcs");
-        s3client.putObject(BUCKET, KEY, path.toFile());
-        createBucketIfNotExists(s3client, "localbucket");
-
-        stubFor(get(urlEqualTo("/api/v3/repos/user1/repository"))
-                .withHeader("Accept", equalTo("application/vnd.github.beta+json"))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withBody("{\"id\":\"1234\"}"))
-        );
-        String result = readResourceFile("create_new_repository_result.json");
-        stubFor(post(urlEqualTo("/api/v3/user/repos"))
-                .withHeader("Accept", equalTo("application/vnd.github.beta+json"))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withBody(result))
-        );
-
-        String queueName = "queue2";
-        GetQueueUrlResult queueUrlResult;
-        try {
-            queueUrlResult = sqsClient.getQueueUrl(queueName);
-        } catch (QueueDoesNotExistException e) {
-            sqsClient.createQueue(queueName);
-            queueUrlResult = sqsClient.getQueueUrl(queueName);
-        }
-        String queueUrl = queueUrlResult.getQueueUrl();
-        PurgeQueueRequest purgeQueueRequest = new PurgeQueueRequest(queueUrl);
-        sqsClient.purgeQueue(purgeQueueRequest);
-        
-        environmentVariables.set("SQS_QUEUE_URL", queueUrl);
-
+        Handler handler = mockHandler();
+        S3BucketEvent event = createEvent();
+        mockNewRepoGithubApiResponse();
         handler.uploadCommitToRepo(event);
 
         /**
@@ -152,12 +167,32 @@ public class SourcecodeDatapointAcceptanceTest {
         assertEquals("https://test@github.com/dpnttest/test3", queueMessageRcsvResult.getMessages().get(0).getBody());
     }
 
+    private void mockAlreadyExistsRepoGithubApiResponse() {
+        stubFor(get(urlEqualTo("/api/v3/repos/user1/repository"))
+                .withHeader("Accept", equalTo("application/vnd.github.beta+json"))
+                .willReturn(aResponse()
+                        .withStatus(400))
+        );
+        stubFor(post(urlEqualTo("/api/v3/user/repos"))
+                .withHeader("Accept", equalTo("application/vnd.github.beta+json"))
+                .willReturn(aResponse()
+                        .withStatus(422)) //already exists
+        );
+    }
+
     @Test
     public void push_commits_to_existing_repo() throws Exception {
         /**
          * Same as the previous test, the only difference is that the target
          * repo already exists: https://github.com/Challenge/username
          */
+        Handler handler = mockHandler();
+        S3BucketEvent event = createEvent();
+        mockAlreadyExistsRepoGithubApiResponse();
+        handler.uploadCommitToRepo(event);
+
+        ReceiveMessageResult queueMessageRcsvResult = sqsClient.receiveMessage(queueUrl);
+        assertEquals("https://test@github.com/dpnttest/test3", queueMessageRcsvResult.getMessages().get(0).getBody());
     }
 
     private String readResourceFile(String filename) {
@@ -175,6 +210,5 @@ public class SourcecodeDatapointAcceptanceTest {
             client.createBucket(bucket);
         }
     }
-
 
 }
