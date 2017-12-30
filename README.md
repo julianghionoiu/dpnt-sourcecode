@@ -13,8 +13,12 @@ serverless deploy
 
 ## Testing
 
+Dependencies:
+ - X
+
 To test the function, execute the git test repo
 
 ```
 ./build.sh
 ```
+
