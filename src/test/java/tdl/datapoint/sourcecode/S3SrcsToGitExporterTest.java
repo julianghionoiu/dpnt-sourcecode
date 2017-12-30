@@ -27,7 +27,7 @@ public class S3SrcsToGitExporterTest {
 
     @Test
     public void export() throws Exception {
-        AmazonS3 client = createS3Client();
+        AmazonS3 client = ServiceMock.createS3Client();
         createBucketIfNotExists(client, BUCKET);
         Path path = Paths.get("src/test/resources/test.srcs");
         client.putObject(BUCKET, "test.srcs", path.toFile());
@@ -71,15 +71,4 @@ public class S3SrcsToGitExporterTest {
         }
     }
 
-    private AmazonS3 createS3Client() {
-        EndpointConfiguration endpoint = new EndpointConfiguration("http://127.0.0.1:9000", "us-east-1");
-        AWSCredentials credential = new BasicAWSCredentials("minio_access_key", "minio_secret_key");
-        AmazonS3 amazonS3 = AmazonS3ClientBuilder
-                .standard()
-                .withPathStyleAccessEnabled(true)
-                .withCredentials(new AWSStaticCredentialsProvider(credential))
-                .withEndpointConfiguration(endpoint)
-                .build();
-        return amazonS3;
-    }
 }

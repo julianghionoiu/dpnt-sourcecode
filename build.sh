@@ -49,7 +49,7 @@ function run_elastic_mq() {
 
 function run_test() {
     echo "Running test"
-    ./gradlew --rerun-tasks test jacocoTestReport --info
+    ./gradlew --rerun-tasks test jacocoTestReport
 }
 
 function clean_up() {
@@ -64,5 +64,6 @@ function clean_up() {
 run_minio
 run_git_repo
 run_elastic_mq
-run_test
-clean_up
+#run_test
+
+#clean_up

@@ -72,13 +72,13 @@ public final class SrcsGithubRepo {
         return System.getenv("GITHUB_DEFAULT_USER");
     }
 
-    public GitHubClient createDefaultGithubClient() {
+    public static GitHubClient createDefaultGithubClient() {
         GitHubClient defaultClient = new GitHubClient();
         defaultClient.setOAuth2Token(getDefaultGithubToken());
         return defaultClient;
     }
 
-    public String getDefaultGithubToken() {
+    public static String getDefaultGithubToken() {
         return System.getenv("GITHUB_TOKEN");
     }
 

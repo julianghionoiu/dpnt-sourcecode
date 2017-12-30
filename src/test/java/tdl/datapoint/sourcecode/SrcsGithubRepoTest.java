@@ -13,6 +13,7 @@ import org.eclipse.egit.github.core.Repository;
 import org.junit.Rule;
 import org.junit.Test;
 import static org.junit.Assert.*;
+import org.junit.Before;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
 import org.junit.runner.RunWith;
 
@@ -25,6 +26,14 @@ public class SrcsGithubRepoTest {
     @Rule
     public EnvironmentVariables environmentVariables = new EnvironmentVariables();
 
+    public GitHubClient client;
+
+    @Before
+    public void setUp() {
+        environmentVariables.set("GITHUB_DEFAULT_USER", "user1");
+        client = ServiceMock.createGithubClient();
+    }
+
     @Test
     public void doesGithubRepoExistForKeyShouldReturnTrue() {
         stubFor(get(urlEqualTo("/api/v3/repos/user1/repository"))
@@ -33,8 +42,6 @@ public class SrcsGithubRepoTest {
                         .withStatus(200)
                         .withBody("{\"id\":\"1234\"}"))
         );
-        environmentVariables.set("GITHUB_DEFAULT_USER", "user1");
-        GitHubClient client = new GitHubClient("localhost", 8089, "http");
         SrcsGithubRepo repo = new SrcsGithubRepo("repository", client);
         assertTrue(repo.doesGithubRepoExist());
     }
@@ -46,8 +53,6 @@ public class SrcsGithubRepoTest {
                 .willReturn(aResponse()
                         .withStatus(400))
         );
-        environmentVariables.set("GITHUB_DEFAULT_USER", "user1");
-        GitHubClient client = new GitHubClient("localhost", 8089, "http");
         SrcsGithubRepo repo = new SrcsGithubRepo("repository", client);
         assertFalse(repo.doesGithubRepoExist());
     }
@@ -67,8 +72,6 @@ public class SrcsGithubRepoTest {
                         .withStatus(200)
                         .withBody(result))
         );
-        environmentVariables.set("GITHUB_DEFAULT_USER", "user1");
-        GitHubClient client = new GitHubClient("localhost", 8089, "http");
         SrcsGithubRepo repo = new SrcsGithubRepo("repository1", client);
         Repository newRepo = repo.createNewRepository();
         assertEquals("repository1", newRepo.getName());

@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.transport.CredentialsProvider;
 import tdl.record.sourcecode.snapshot.file.Segment;
 import tdl.record.sourcecode.snapshot.file.ToGitConverter;
 
@@ -31,6 +32,8 @@ public class S3SrcsToGitExporter {
     private final AmazonS3 s3;
 
     private Git git;
+    
+    private CredentialsProvider gitCredentialsProvider;
 
     public S3SrcsToGitExporter(String bucket, String key, String gitUri) {
         this.bucket = bucket;
@@ -65,7 +68,7 @@ public class S3SrcsToGitExporter {
         return file.toPath();
     }
 
-    private AmazonS3 createDefaultS3Client() {
+    public static AmazonS3 createDefaultS3Client() {
         return AmazonS3ClientBuilder.standard()
                 .build();
     }

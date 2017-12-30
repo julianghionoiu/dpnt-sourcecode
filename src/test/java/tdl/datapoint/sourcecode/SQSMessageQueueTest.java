@@ -17,10 +17,7 @@ public class SQSMessageQueueTest {
 
     @Test
     public void sendMessage() {
-        AwsClientBuilder.EndpointConfiguration config = new AwsClientBuilder.EndpointConfiguration("http://localhost:9324", "elasticmq");
-        AmazonSQS client = AmazonSQSClientBuilder.standard()
-                .withEndpointConfiguration(config)
-                .build();
+        AmazonSQS client = ServiceMock.createSQSClient();
         String queueName = "queue2";
         GetQueueUrlResult result;
         try {
@@ -32,7 +29,7 @@ public class SQSMessageQueueTest {
 
         SQSMessageQueue queue = new SQSMessageQueue(client);
         environmentVariables.set("SQS_QUEUE_URL", result.getQueueUrl());
-        
+
         String messageId = queue.send("Hello!");
         assertNotNull(messageId);
     }

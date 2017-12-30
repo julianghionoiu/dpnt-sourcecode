@@ -8,9 +8,9 @@ provider:
     runtime: java8
     stage: ${opt:stage, 'dev'}
     environment:
-        #For adding github URI, the format should be
-        #    https://username:personal_access_token@github.com/username/repo
-        GIT_URI: ${file(config.{$self:provider.stage}.json):GIT_URI}
+        GITHUB_DEFAULT_USER:  ${file(config.{$self:provider.stage}.json):GITHUB_DEFAULT_USER}
+        SQS_QUEUE_URL: ${file(config.{$self:provider.stage}.json):SQS_QUEUE_URL}
+        GITHUB_TOKEN: ${file(config.{$self:provider.stage}.json):GITHUB_TOKEN}
 
 package:
     artifact: build/distributions/tdl-srcs-github-export.zip

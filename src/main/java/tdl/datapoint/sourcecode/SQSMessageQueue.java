@@ -17,7 +17,7 @@ public class SQSMessageQueue {
         this.client = createDefaultSqsClient();
     }
 
-    private AmazonSQS createDefaultSqsClient() {
+    public static AmazonSQS createDefaultSqsClient() {
         return AmazonSQSClientBuilder.standard()
                 .build();
     }
