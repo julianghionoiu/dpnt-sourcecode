@@ -6,6 +6,7 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.S3Object;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Iterator;
@@ -29,8 +30,9 @@ public class S3SrcsToGitExporterTest {
     public void export() throws Exception {
         AmazonS3 client = ServiceMock.createS3Client();
         createBucketIfNotExists(client, BUCKET);
+        String key = "test.srcs";
         Path path = Paths.get("src/test/resources/test.srcs");
-        client.putObject(BUCKET, "test.srcs", path.toFile());
+        client.putObject(BUCKET, key, path.toFile());
 
         Git git = Git.cloneRepository()
                 .setURI(GIT_URI)
@@ -41,11 +43,14 @@ public class S3SrcsToGitExporterTest {
 
         assertEquals(1, initSize);
 
-        S3SrcsToGitExporter exporter = new S3SrcsToGitExporter(BUCKET, "test.srcs", GIT_URI, client);
+        S3Object s3Object = client.getObject(BUCKET, key);
+
+        S3SrcsToGitExporter exporter = new S3SrcsToGitExporter(s3Object, git);
         exporter.export();
+        git.push().call();
         
         git.pull().call();
-        
+
         long newSize = getLogCount(git);
         assertEquals(7, newSize);
     }

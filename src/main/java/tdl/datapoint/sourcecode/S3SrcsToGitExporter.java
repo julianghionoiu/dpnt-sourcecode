@@ -18,43 +18,27 @@ import tdl.record.sourcecode.snapshot.file.ToGitConverter;
 
 /**
  * This class exports file srcs at S3 repository to existing Git repository.
+ * This will only be exported to local repository. Pushing to remote will not
+ * be handled here.
  *
  * @author Petra Barus <petra.barus@gmail.com>
  */
 public class S3SrcsToGitExporter {
 
-    private final String bucket;
+    private final S3Object s3Object;
 
-    private final String key;
+    private final Git git;
 
-    private final String gitUri;
-
-    private final AmazonS3 s3;
-
-    private Git git;
-    
-    private CredentialsProvider gitCredentialsProvider;
-
-    public S3SrcsToGitExporter(String bucket, String key, String gitUri) {
-        this.bucket = bucket;
-        this.key = key;
-        this.gitUri = gitUri;
-        this.s3 = createDefaultS3Client();
-    }
-
-    public S3SrcsToGitExporter(String bucket, String key, String gitUri, AmazonS3 s3) {
-        this.bucket = bucket;
-        this.key = key;
-        this.gitUri = gitUri;
-        this.s3 = s3;
+    public S3SrcsToGitExporter(S3Object s3Object, Git git) {
+        this.s3Object = s3Object;
+        this.git = git;
     }
 
     public void export() throws GitAPIException, IOException, Exception {
         Path inputFile = downloadObject();
-        Path outputDir = cloneGit();
+        Path outputDir = getGitPath();
         ToGitConverter converter = new ToGitConverter(inputFile, outputDir);
         converter.convert();
-        pushRemote();
     }
 
     public void pushRemote() throws GitAPIException {
@@ -63,7 +47,7 @@ public class S3SrcsToGitExporter {
 
     public Path downloadObject() throws IOException {
         File file = File.createTempFile("code_", ".srcs");
-        InputStream source = getS3Object();
+        InputStream source = s3Object.getObjectContent();
         FileUtils.copyInputStreamToFile(source, file);
         return file.toPath();
     }
@@ -73,22 +57,9 @@ public class S3SrcsToGitExporter {
                 .build();
     }
 
-    private InputStream getS3Object() throws IOException {
-        GetObjectRequest request = new GetObjectRequest(bucket, key);
-        S3Object object = s3.getObject(request);
-        return object.getObjectContent();
-    }
-
-    public Path cloneGit() throws IOException, GitAPIException {
-        Path path = createTempDir();
-        git = Git.cloneRepository()
-                .setURI(gitUri)
-                .setDirectory(path.toFile())
-                .call();
-        return path;
-    }
-
-    private Path createTempDir() throws IOException {
-        return Files.createTempDirectory("tmp");
+    public Path getGitPath() {
+        return git.getRepository()
+                .getDirectory()
+                .toPath();
     }
 }

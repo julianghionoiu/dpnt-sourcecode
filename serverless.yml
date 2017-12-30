@@ -8,7 +8,7 @@ provider:
     runtime: java8
     stage: ${opt:stage, 'dev'}
     environment:
-        GITHUB_DEFAULT_USER:  ${file(config.{$self:provider.stage}.json):GITHUB_DEFAULT_USER}
+        GITHUB_USERNAME:  ${file(config.{$self:provider.stage}.json):GITHUB_USERNAME}
         SQS_QUEUE_URL: ${file(config.{$self:provider.stage}.json):SQS_QUEUE_URL}
         GITHUB_TOKEN: ${file(config.{$self:provider.stage}.json):GITHUB_TOKEN}
 

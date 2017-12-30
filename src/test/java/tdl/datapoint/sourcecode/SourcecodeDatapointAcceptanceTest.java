@@ -1,6 +1,11 @@
 package tdl.datapoint.sourcecode;
 
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.sqs.AmazonSQS;
+import com.amazonaws.services.sqs.model.GetQueueUrlResult;
+import com.amazonaws.services.sqs.model.PurgeQueueRequest;
+import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
+import com.amazonaws.services.sqs.model.ReceiveMessageResult;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -13,10 +18,13 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import org.apache.commons.io.FileUtils;
+import org.eclipse.jgit.api.Git;
+import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
+import org.junit.rules.TemporaryFolder;
 import static org.mockito.Mockito.*;
 
 public class SourcecodeDatapointAcceptanceTest {
@@ -25,7 +33,11 @@ public class SourcecodeDatapointAcceptanceTest {
 
     private static final String GIT_URI = "git://localhost:1234/";
 
-    private static final String KEY = "challenge/username/file.srcs";
+    private static final String KEY = "challenge/test3/file.srcs";
+    
+    private static final String GITHUB_USERNAME = "dpnttest";
+    
+    private static final String GITHUB_TOKEN = "test";
 
     @Rule
     public WireMockRule wireMockRule = new WireMockRule(8089);
@@ -33,10 +45,13 @@ public class SourcecodeDatapointAcceptanceTest {
     @Rule
     public EnvironmentVariables environmentVariables = new EnvironmentVariables();
 
+    @Rule
+    public TemporaryFolder folder = new TemporaryFolder();
+
     @Before
     public void setUp() {
-        environmentVariables.set("GITHUB_DEFAULT_USER", "dpnttest");
-        environmentVariables.set("GITHUB_TOKEN", "91882f16f943d086fd5fbb8baa1b2d551407d006");
+        environmentVariables.set("GITHUB_USERNAME", GITHUB_USERNAME);
+        environmentVariables.set("GITHUB_TOKEN", GITHUB_TOKEN);
     }
 
     @Test
@@ -46,7 +61,6 @@ public class SourcecodeDatapointAcceptanceTest {
          * Event queue (ElasticMq)
          */
 
-        
         environmentVariables.set("name1", "value1");
 
         /**
@@ -78,11 +92,20 @@ public class SourcecodeDatapointAcceptanceTest {
         when(handler.createDefaultGithubClient())
                 .thenReturn(ServiceMock.createGithubClient());
 
+        Git git = Git.cloneRepository()
+                .setURI(GIT_URI)
+                .setDirectory(folder.newFolder())
+                .call();
+        doReturn(git)
+                .when(handler)
+                .getGitRepo(any());
+
         AmazonS3 s3client = ServiceMock.createS3Client();
         when(handler.createDefaultS3Client())
                 .thenReturn(s3client);
+        AmazonSQS sqsClient = ServiceMock.createSQSClient();
         when(handler.createDefaultSQSClient())
-                .thenReturn(ServiceMock.createSQSClient());
+                .thenReturn(sqsClient);
 
         Path path = Paths.get("src/test/resources/test.srcs");
         s3client.putObject(BUCKET, KEY, path.toFile());
@@ -101,6 +124,21 @@ public class SourcecodeDatapointAcceptanceTest {
                         .withStatus(200)
                         .withBody(result))
         );
+
+        String queueName = "queue2";
+        GetQueueUrlResult queueUrlResult;
+        try {
+            queueUrlResult = sqsClient.getQueueUrl(queueName);
+        } catch (QueueDoesNotExistException e) {
+            sqsClient.createQueue(queueName);
+            queueUrlResult = sqsClient.getQueueUrl(queueName);
+        }
+        String queueUrl = queueUrlResult.getQueueUrl();
+        PurgeQueueRequest purgeQueueRequest = new PurgeQueueRequest(queueUrl);
+        sqsClient.purgeQueue(purgeQueueRequest);
+        
+        environmentVariables.set("SQS_QUEUE_URL", queueUrl);
+
         handler.uploadCommitToRepo(event);
 
         /**
@@ -110,6 +148,8 @@ public class SourcecodeDatapointAcceptanceTest {
          * (check ElasticMq) We clone the REPO, it should contain the expected
          * commits
          */
+        ReceiveMessageResult queueMessageRcsvResult = sqsClient.receiveMessage(queueUrl);
+        assertEquals("https://test@github.com/dpnttest/test3", queueMessageRcsvResult.getMessages().get(0).getBody());
     }
 
     @Test
@@ -135,5 +175,6 @@ public class SourcecodeDatapointAcceptanceTest {
             client.createBucket(bucket);
         }
     }
+
 
 }

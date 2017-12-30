@@ -6,8 +6,10 @@ import org.eclipse.egit.github.core.User;
 import org.eclipse.egit.github.core.client.GitHubClient;
 import org.eclipse.egit.github.core.client.RequestException;
 import org.eclipse.egit.github.core.service.RepositoryService;
+import org.eclipse.jgit.transport.CredentialsProvider;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
-public final class SrcsGithubRepo {
+public class SrcsGithubRepo {
 
     private final String repoName;
 
@@ -22,14 +24,14 @@ public final class SrcsGithubRepo {
     public SrcsGithubRepo(String repoName) {
         this.repoName = repoName;
         this.client = createDefaultGithubClient();
-        this.username = getDefaultUsername();
+        this.username = getUsername();
         this.service = new RepositoryService(client);
     }
 
     public SrcsGithubRepo(String repoName, GitHubClient client) {
         this.repoName = repoName;
         this.client = client;
-        this.username = getDefaultUsername();
+        this.username = getUsername();
         this.service = new RepositoryService(client);
     }
 
@@ -68,22 +70,26 @@ public final class SrcsGithubRepo {
         return repository;
     }
 
-    public String getDefaultUsername() {
-        return System.getenv("GITHUB_DEFAULT_USER");
+    public static String getUsername() {
+        return System.getenv("GITHUB_USERNAME");
     }
 
     public static GitHubClient createDefaultGithubClient() {
         GitHubClient defaultClient = new GitHubClient();
-        defaultClient.setOAuth2Token(getDefaultGithubToken());
+        defaultClient.setOAuth2Token(getToken());
         return defaultClient;
     }
 
-    public static String getDefaultGithubToken() {
+    public static CredentialsProvider getCredentialsProvider() {
+        return new UsernamePasswordCredentialsProvider(getToken(), "");
+    }
+
+    public static String getToken() {
         return System.getenv("GITHUB_TOKEN");
     }
 
     public String getUri() {
-        return "https://github.com/" + username + "/" + getRepoName();
+        return "https://" + getToken() + "@github.com/" + username + "/" + getRepoName();
     }
 
     public static String parseS3KeyToRepositoryName(String s3Key) {

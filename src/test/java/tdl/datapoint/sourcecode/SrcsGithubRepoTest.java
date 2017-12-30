@@ -30,7 +30,7 @@ public class SrcsGithubRepoTest {
 
     @Before
     public void setUp() {
-        environmentVariables.set("GITHUB_DEFAULT_USER", "user1");
+        environmentVariables.set("GITHUB_USERNAME", "user1");
         client = ServiceMock.createGithubClient();
     }
 
@@ -88,7 +88,7 @@ public class SrcsGithubRepoTest {
 
     @Test
     public void useRealCred() throws IOException {
-//        environmentVariables.set("GITHUB_DEFAULT_USER", "dpnttest");
+//        environmentVariables.set("GITHUB_USERNAME", "dpnttest");
 //        environmentVariables.set("GITHUB_TOKEN", "");
 //        SrcsGithubRepo repo = new SrcsGithubRepo("test3");
 //        Repository newRepo = repo.createNewRepository();
