@@ -13,12 +13,22 @@ serverless deploy
 
 ## Testing
 
-Dependencies:
- - X
-
-To test the function, execute the git test repo
-
-```
-./build.sh
+Start external dependencies
+```bash
+python local-sqs/fetch-elasticmq-and-run.py start
+python local-github/local-github-run.py start
+python local-s3/minio-wrapper.py start
 ```
 
+Run the acceptance test
+
+```
+?
+```
+
+Start external dependencies
+```bash
+python local-sqs/fetch-elasticmq-and-run.py stop
+python local-github/local-github-run.py stop
+python local-s3/minio-wrapper.py stop
+```
