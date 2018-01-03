@@ -7,17 +7,9 @@
 .project
 .classpath
 
-# Package Files
-*.jar
-*.war
-*.ear
 
 # Serverless directories
 .serverless
 
 /.nb-gradle/
-
-#
-tmp
-minio
 node_modules
