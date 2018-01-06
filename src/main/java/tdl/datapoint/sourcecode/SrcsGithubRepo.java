@@ -20,6 +20,8 @@ public class SrcsGithubRepo {
     private final RepositoryService service;
 
     private Repository repository;
+    
+    private String cloneUrl;
 
     public SrcsGithubRepo(String repoName) {
         this.repoName = repoName;
@@ -89,7 +91,7 @@ public class SrcsGithubRepo {
     }
 
     public String getUri() {
-        return "https://" + getToken() + "@github.com/" + username + "/" + getRepoName();
+        return repository.getCloneUrl();
     }
 
     public static String parseS3KeyToRepositoryName(String s3Key) {

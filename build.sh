@@ -64,6 +64,6 @@ function clean_up() {
 run_minio
 run_git_repo
 run_elastic_mq
-#run_test
+run_test
 
-#clean_up
+clean_up

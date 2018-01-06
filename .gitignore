@@ -13,3 +13,7 @@
 
 /.nb-gradle/
 node_modules
+
+tmp
+minio
+elasticmq-server.jar
