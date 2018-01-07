@@ -4,3 +4,6 @@
 [submodule "local-s3"]
 	path = local-s3
 	url = git@github.com:julianghionoiu/tdl-local-s3.git
+[submodule "local-github"]
+	path = local-github
+	url = git@github.com:julianghionoiu/tdl-local-github.git
