@@ -11,6 +11,12 @@ import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
 public class SrcsGithubRepo {
 
+    public static final String ENV_GITHUB_USERNAME = "GITHUB_USERNAME";
+    public static final String ENV_GITHUB_HOST = "GITHUB_HOST";
+    public static final String ENV_GITHUB_PORT = "GITHUB_PORT";
+    public static final String ENV_GITHUB_PROTOCOL = "GITHUB_PROTOCOL";
+    public static final String ENV_GITHUB_TOKEN = "GITHUB_TOKEN";
+    
     private final String repoName;
 
     private final String username;
@@ -20,12 +26,12 @@ public class SrcsGithubRepo {
     private final RepositoryService service;
 
     private Repository repository;
-    
+
     private String cloneUrl;
 
     public SrcsGithubRepo(String repoName) {
         this.repoName = repoName;
-        this.client = createDefaultGithubClient();
+        this.client = createGithubClient();
         this.username = getUsername();
         this.service = new RepositoryService(client);
     }
@@ -73,12 +79,20 @@ public class SrcsGithubRepo {
     }
 
     public static String getUsername() {
-        return System.getenv("GITHUB_USERNAME");
+        return System.getenv(ENV_GITHUB_USERNAME);
     }
 
-    public static GitHubClient createDefaultGithubClient() {
-        GitHubClient defaultClient = new GitHubClient();
-        defaultClient.setOAuth2Token(getToken());
+    public static GitHubClient createGithubClient() {
+        String githubHost = System.getenv(ENV_GITHUB_HOST);
+        String githubPort = System.getenv(ENV_GITHUB_PORT);
+        String githubProtocol = System.getenv(ENV_GITHUB_PROTOCOL);
+        GitHubClient defaultClient;
+        if (githubHost != null && githubPort != null && githubProtocol != null) {
+            defaultClient = new GitHubClient(githubHost, Integer.parseInt(githubPort), githubProtocol);
+        } else {
+            defaultClient = new GitHubClient();
+            defaultClient.setOAuth2Token(getToken());
+        }
         return defaultClient;
     }
 
@@ -87,7 +101,7 @@ public class SrcsGithubRepo {
     }
 
     public static String getToken() {
-        return System.getenv("GITHUB_TOKEN");
+        return System.getenv(ENV_GITHUB_TOKEN);
     }
 
     public String getUri() {

@@ -72,7 +72,7 @@ public class Handler implements RequestHandler<Map<String, Object>, Response> {
     }
 
     public GitHubClient createDefaultGithubClient() {
-        return SrcsGithubRepo.createDefaultGithubClient();
+        return SrcsGithubRepo.createGithubClient();
     }
 
     public AmazonSQS createDefaultSQSClient() {
