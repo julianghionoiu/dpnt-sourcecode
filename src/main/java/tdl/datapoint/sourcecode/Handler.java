@@ -6,7 +6,6 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.sqs.AmazonSQS;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.logging.Level;
@@ -46,7 +45,7 @@ public class Handler implements RequestHandler<Map<String, Object>, Response> {
     }
 
     private void sendGithubUrlToQueue(String url) {
-        SQSMessageQueue queue = new SQSMessageQueue(createDefaultSQSClient());
+        SQSMessageQueue queue = new SQSMessageQueue();
         queue.send(url);
     }
 
@@ -68,10 +67,6 @@ public class Handler implements RequestHandler<Map<String, Object>, Response> {
     public S3Object getS3Object(S3BucketEvent event) {
         AmazonS3 s3Client = createDefaultS3Client();
         return s3Client.getObject(event.getBucket(), event.getKey());
-    }
-
-    public AmazonSQS createDefaultSQSClient() {
-        return SQSMessageQueue.createSqsClient();
     }
 
     public AmazonS3 createDefaultS3Client() {

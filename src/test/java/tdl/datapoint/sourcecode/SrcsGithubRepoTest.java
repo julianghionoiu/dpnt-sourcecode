@@ -47,8 +47,11 @@ public class SrcsGithubRepoTest {
         File directory = getRepoDirPath().resolve("repo1").toFile();
         FileUtils.deleteDirectory(directory);
         Git.init().setDirectory(directory).call();
+        
         SrcsGithubRepo repo = new SrcsGithubRepo("repo1");
         assertTrue(repo.doesGithubRepoExist());
+        assertTrue(repo.getUri().startsWith("file:///tmp"));
+        assertTrue(repo.getUri().contains("repo1"));
     }
 
     @Test
@@ -64,10 +67,18 @@ public class SrcsGithubRepoTest {
     }
 
     @Test
-    public void createNewRepository() throws IOException {
-        SrcsGithubRepo repo = new SrcsGithubRepo("repository1");
-        Repository newRepo = repo.createNewRepository();
-        assertEquals("repository1", newRepo.getName());
+    public void createNewRepository() throws IOException, GitAPIException {
+        File directory = getRepoDirPath().resolve("repository1").toFile();
+        FileUtils.deleteDirectory(directory);
+        
+        SrcsGithubRepo repo1 = new SrcsGithubRepo("repository1");
+        assertFalse(repo1.doesGithubRepoExist());
+        
+        repo1.createNewRepository();
+        
+        assertTrue(repo1.doesGithubRepoExist());
+        assertTrue(repo1.getUri().startsWith("file:///tmp"));
+        assertTrue(repo1.getUri().contains("repository1"));
     }
 
     public String readResourceFile(String filename) {

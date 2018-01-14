@@ -67,9 +67,8 @@ public class ServiceMock {
         client.purgeQueue(purgeQueueRequest);
     }
 
-    public static String getFirstMessageBody(String queueName) {
+    public static String getFirstMessageBody(String queueUrl) {
         AmazonSQS client = createSQSClient();
-        String queueUrl = getQueueUrlOrCreate(queueName);
         ReceiveMessageRequest rmr = new ReceiveMessageRequest(queueUrl);
         ReceiveMessageResult result = client.receiveMessage(rmr);
         

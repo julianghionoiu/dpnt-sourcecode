@@ -1,24 +1,9 @@
 package tdl.datapoint.sourcecode;
 
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.sqs.AmazonSQS;
-import com.amazonaws.services.sqs.model.GetQueueUrlResult;
-import com.amazonaws.services.sqs.model.PurgeQueueRequest;
-import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
-import com.amazonaws.services.sqs.model.ReceiveMessageResult;
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
-import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.client.WireMock.post;
-import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
-import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import org.apache.commons.io.FileUtils;
-import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import static org.junit.Assert.*;
 import org.junit.Before;
@@ -32,8 +17,6 @@ public class SourcecodeDatapointAcceptanceTest {
 
     private static final String BUCKET = "localbucket";
 
-    private static final String GIT_URI = "git://localhost:1234/";
-
     private static final String KEY = "challenge/test3/file.srcs";
 
     private static final String GITHUB_USERNAME = "dpnttest";
@@ -45,9 +28,6 @@ public class SourcecodeDatapointAcceptanceTest {
     private static final String GITHUB_PORT = "9556";
     
     private static final String GITHUB_PROTOCOL = "http";
-
-    @Rule
-    public WireMockRule wireMockRule = new WireMockRule(8089);
 
     @Rule
     public EnvironmentVariables environmentVariables = new EnvironmentVariables();
@@ -82,14 +62,6 @@ public class SourcecodeDatapointAcceptanceTest {
 
     private Handler mockHandler() throws IOException, GitAPIException, Exception {
         Handler handler = spy(Handler.class);
-
-        Git git = Git.cloneRepository()
-                .setURI(GIT_URI)
-                .setDirectory(folder.newFolder())
-                .call();
-        doReturn(git)
-                .when(handler)
-                .getGitRepo(any());
 
         s3Client = ServiceMock.createS3Client();
         when(handler.createDefaultS3Client())
@@ -143,7 +115,9 @@ public class SourcecodeDatapointAcceptanceTest {
          * (check ElasticMq) We clone the REPO, it should contain the expected
          * commits
          */
-        assertEquals("https://test@github.com/dpnttest/test3", ServiceMock.getFirstMessageBody(queueUrl));
+        String expected = ServiceMock.getFirstMessageBody(queueUrl);
+        assertTrue(expected.startsWith("file:///"));
+        assertTrue(expected.endsWith("test3"));
     }
 
     @Test
@@ -156,7 +130,9 @@ public class SourcecodeDatapointAcceptanceTest {
         S3BucketEvent event = createEvent();
         handler.uploadCommitToRepo(event);
 
-        assertEquals("https://test@github.com/dpnttest/test3", ServiceMock.getFirstMessageBody(queueUrl));
+        String expected = ServiceMock.getFirstMessageBody(queueUrl);
+        assertTrue(expected.startsWith("file:///"));
+        assertTrue(expected.endsWith("test3"));
     }
 
     @SuppressWarnings("deprecation")

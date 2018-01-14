@@ -58,14 +58,15 @@ public class SrcsGithubRepo {
         }
     }
 
-    public Repository createNewRepository() throws IOException, RequestException {
-        repository = new Repository();
-        repository.setName(getRepoName());
+    public void createNewRepository() throws IOException, RequestException {
+        Repository newRepo = new Repository();
+        newRepo.setName(getRepoName());
         User owner = new User();
         owner.setName(username);
-        repository.setOwner(owner);
-        service.createRepository(repository);
-        return repository;
+        newRepo.setOwner(owner);
+        service.createRepository(newRepo);
+        
+        doesGithubRepoExist();
     }
 
     public String getRepoName() {

@@ -20,7 +20,7 @@ public class SQSMessageQueueTest {
         String queueName = "queue2";
         String url = ServiceMock.getQueueUrlOrCreate(queueName);
         SQSMessageQueue queue = new SQSMessageQueue();
-        environmentVariables.set("SQS_QUEUE_URL", url);
+        environmentVariables.set(SQSMessageQueue.ENV_SQS_QUEUE_URL, url);
 
         String messageId = queue.send("Hello!");
         assertNotNull(messageId);
