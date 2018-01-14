@@ -10,7 +10,6 @@ import com.amazonaws.services.sqs.AmazonSQS;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.logging.Level;
-import org.eclipse.egit.github.core.client.GitHubClient;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
@@ -41,7 +40,7 @@ public class Handler implements RequestHandler<Map<String, Object>, Response> {
 
     private SrcsGithubRepo createRepository(String s3Key) throws Exception {
         String repoName = SrcsGithubRepo.parseS3KeyToRepositoryName(s3Key);
-        SrcsGithubRepo repo = new SrcsGithubRepo(repoName, createDefaultGithubClient());
+        SrcsGithubRepo repo = new SrcsGithubRepo(repoName);
         repo.createNewRepositoryIfNotExists();
         return repo;
     }
@@ -71,12 +70,8 @@ public class Handler implements RequestHandler<Map<String, Object>, Response> {
         return s3Client.getObject(event.getBucket(), event.getKey());
     }
 
-    public GitHubClient createDefaultGithubClient() {
-        return SrcsGithubRepo.createGithubClient();
-    }
-
     public AmazonSQS createDefaultSQSClient() {
-        return SQSMessageQueue.createDefaultSqsClient();
+        return SQSMessageQueue.createSqsClient();
     }
 
     public AmazonS3 createDefaultS3Client() {

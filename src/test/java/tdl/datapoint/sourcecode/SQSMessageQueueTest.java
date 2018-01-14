@@ -17,18 +17,10 @@ public class SQSMessageQueueTest {
 
     @Test
     public void sendMessage() {
-        AmazonSQS client = ServiceMock.createSQSClient();
         String queueName = "queue2";
-        GetQueueUrlResult result;
-        try {
-            result = client.getQueueUrl(queueName);
-        } catch (QueueDoesNotExistException e) {
-            client.createQueue(queueName);
-            result = client.getQueueUrl(queueName);
-        }
-
-        SQSMessageQueue queue = new SQSMessageQueue(client);
-        environmentVariables.set("SQS_QUEUE_URL", result.getQueueUrl());
+        String url = ServiceMock.getQueueUrlOrCreate(queueName);
+        SQSMessageQueue queue = new SQSMessageQueue();
+        environmentVariables.set("SQS_QUEUE_URL", url);
 
         String messageId = queue.send("Hello!");
         assertNotNull(messageId);

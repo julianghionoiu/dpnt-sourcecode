@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.egit.github.core.Repository;
 import org.eclipse.jgit.api.Git;
@@ -22,8 +24,6 @@ import org.junit.runner.RunWith;
 @RunWith(DataProviderRunner.class)
 public class SrcsGithubRepoTest {
 
-    private static final String REPO_DIR = "/tmp/repo";
-
     @Rule
     public EnvironmentVariables environmentVariables = new EnvironmentVariables();
 
@@ -37,18 +37,22 @@ public class SrcsGithubRepoTest {
         environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_PROTOCOL, "http");
     }
 
+    private static Path getRepoDirPath() throws IOException {
+        String path = FileUtils.readFileToString(Paths.get("tmp/github-dir.txt").toFile(), Charset.defaultCharset()).trim();
+        return Paths.get(path);
+    }
+
     @Test
     public void doesGithubRepoExistForKeyShouldReturnTrue() throws GitAPIException, IOException {
-        File directory = new File(REPO_DIR + "/repo1");
-        FileUtils.deleteDirectory(directory); 
+        File directory = getRepoDirPath().resolve("repo1").toFile();
+        FileUtils.deleteDirectory(directory);
         Git.init().setDirectory(directory).call();
         SrcsGithubRepo repo = new SrcsGithubRepo("repo1");
         assertTrue(repo.doesGithubRepoExist());
     }
 
     @Test
-    public void doesGithubRepoExistForKeyShouldReturnFalse() {
-        FileUtils.deleteQuietly(new File(REPO_DIR + "/repo2"));
+    public void doesGithubRepoExistForKeyShouldReturnFalse() throws IOException {
         SrcsGithubRepo repo = new SrcsGithubRepo("repo2 ");
         assertFalse(repo.doesGithubRepoExist());
     }

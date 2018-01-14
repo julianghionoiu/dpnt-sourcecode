@@ -39,6 +39,12 @@ public class SourcecodeDatapointAcceptanceTest {
     private static final String GITHUB_USERNAME = "dpnttest";
 
     private static final String GITHUB_TOKEN = "test";
+    
+    private static final String GITHUB_HOST = "localhost";
+    
+    private static final String GITHUB_PORT = "9556";
+    
+    private static final String GITHUB_PROTOCOL = "http";
 
     @Rule
     public WireMockRule wireMockRule = new WireMockRule(8089);
@@ -49,16 +55,20 @@ public class SourcecodeDatapointAcceptanceTest {
     @Rule
     public TemporaryFolder folder = new TemporaryFolder();
 
-    private AmazonSQS sqsClient;
-
     private AmazonS3 s3Client;
 
     private String queueUrl;
 
     @Before
     public void setUp() {
-        environmentVariables.set("GITHUB_USERNAME", GITHUB_USERNAME);
-        environmentVariables.set("GITHUB_TOKEN", GITHUB_TOKEN);
+        environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_USERNAME, GITHUB_USERNAME);
+        environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_TOKEN, GITHUB_TOKEN);
+        environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_HOST, GITHUB_HOST);
+        environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_PORT, GITHUB_PORT);
+        environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_PROTOCOL, GITHUB_PROTOCOL);
+        
+        environmentVariables.set(SQSMessageQueue.ENV_SQS_ENDPOINT, ServiceMock.ELASTIC_MQ_URL);
+        environmentVariables.set(SQSMessageQueue.ENV_SQS_REGION, ServiceMock.ELASTIC_MQ_REGION);
     }
 
     private S3BucketEvent createEvent() {
@@ -73,9 +83,6 @@ public class SourcecodeDatapointAcceptanceTest {
     private Handler mockHandler() throws IOException, GitAPIException, Exception {
         Handler handler = spy(Handler.class);
 
-        when(handler.createDefaultGithubClient())
-                .thenReturn(ServiceMock.createGithubClient());
-
         Git git = Git.cloneRepository()
                 .setURI(GIT_URI)
                 .setDirectory(folder.newFolder())
@@ -87,43 +94,17 @@ public class SourcecodeDatapointAcceptanceTest {
         s3Client = ServiceMock.createS3Client();
         when(handler.createDefaultS3Client())
                 .thenReturn(s3Client);
-        sqsClient = ServiceMock.createSQSClient();
-        when(handler.createDefaultSQSClient())
-                .thenReturn(sqsClient);
+        
 
         Path path = Paths.get("src/test/resources/test.srcs");
         s3Client.putObject(BUCKET, KEY, path.toFile());
         createBucketIfNotExists(s3Client, "localbucket");
 
         String queueName = "queue2";
-        GetQueueUrlResult queueUrlResult;
-        try {
-            queueUrlResult = sqsClient.getQueueUrl(queueName);
-        } catch (QueueDoesNotExistException e) {
-            sqsClient.createQueue(queueName);
-            queueUrlResult = sqsClient.getQueueUrl(queueName);
-        }
-        queueUrl = queueUrlResult.getQueueUrl();
-        PurgeQueueRequest purgeQueueRequest = new PurgeQueueRequest(queueUrl);
-        sqsClient.purgeQueue(purgeQueueRequest);
-
-        environmentVariables.set("SQS_QUEUE_URL", queueUrl);
+        queueUrl = ServiceMock.getQueueUrlOrCreate(queueName);
+        ServiceMock.purgeQueue(queueName);
+        environmentVariables.set(SQSMessageQueue.ENV_SQS_QUEUE_URL, queueUrl);
         return handler;
-    }
-
-    private void mockNewRepoGithubApiResponse() {
-        stubFor(get(urlEqualTo("/api/v3/repos/user1/repository"))
-                .withHeader("Accept", equalTo("application/vnd.github.beta+json"))
-                .willReturn(aResponse()
-                        .withStatus(400))
-        );
-        String result = readResourceFile("create_new_repository_result.json");
-        stubFor(post(urlEqualTo("/api/v3/user/repos"))
-                .withHeader("Accept", equalTo("application/vnd.github.beta+json"))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withBody(result))
-        );
     }
 
     @Test
@@ -153,7 +134,6 @@ public class SourcecodeDatapointAcceptanceTest {
          */
         Handler handler = mockHandler();
         S3BucketEvent event = createEvent();
-        mockNewRepoGithubApiResponse();
         handler.uploadCommitToRepo(event);
 
         /**
@@ -163,21 +143,7 @@ public class SourcecodeDatapointAcceptanceTest {
          * (check ElasticMq) We clone the REPO, it should contain the expected
          * commits
          */
-        ReceiveMessageResult queueMessageRcsvResult = sqsClient.receiveMessage(queueUrl);
-        assertEquals("https://test@github.com/dpnttest/test3", queueMessageRcsvResult.getMessages().get(0).getBody());
-    }
-
-    private void mockAlreadyExistsRepoGithubApiResponse() {
-        stubFor(get(urlEqualTo("/api/v3/repos/user1/repository"))
-                .withHeader("Accept", equalTo("application/vnd.github.beta+json"))
-                .willReturn(aResponse()
-                        .withStatus(400))
-        );
-        stubFor(post(urlEqualTo("/api/v3/user/repos"))
-                .withHeader("Accept", equalTo("application/vnd.github.beta+json"))
-                .willReturn(aResponse()
-                        .withStatus(422)) //already exists
-        );
+        assertEquals("https://test@github.com/dpnttest/test3", ServiceMock.getFirstMessageBody(queueUrl));
     }
 
     @Test
@@ -188,20 +154,9 @@ public class SourcecodeDatapointAcceptanceTest {
          */
         Handler handler = mockHandler();
         S3BucketEvent event = createEvent();
-        mockAlreadyExistsRepoGithubApiResponse();
         handler.uploadCommitToRepo(event);
 
-        ReceiveMessageResult queueMessageRcsvResult = sqsClient.receiveMessage(queueUrl);
-        assertEquals("https://test@github.com/dpnttest/test3", queueMessageRcsvResult.getMessages().get(0).getBody());
-    }
-
-    private String readResourceFile(String filename) {
-        Path path = Paths.get("./src/test/resources/tdl/datapoint/sourcecode/" + filename);
-        try {
-            return FileUtils.readFileToString(path.toFile(), Charset.defaultCharset());
-        } catch (IOException ex) {
-            return "";
-        }
+        assertEquals("https://test@github.com/dpnttest/test3", ServiceMock.getFirstMessageBody(queueUrl));
     }
 
     @SuppressWarnings("deprecation")

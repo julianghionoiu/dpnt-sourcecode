@@ -47,6 +47,15 @@ function run_elastic_mq() {
     sleep 3
 }
 
+function run_github_local() {
+    echo "Running github"
+    CUR_DIR=`pwd`
+    TMPDIR=`mktemp -d`
+    DIR=$TMPDIR
+    echo $TMPDIR > tmp/github-dir.txt
+    python local-github/github-server.py $TMPDIR &
+}
+
 function run_test() {
     echo "Running test"
     ./gradlew --rerun-tasks test jacocoTestReport
@@ -57,13 +66,18 @@ function clean_up() {
     ps ax | grep minio | awk '{print $1}' | head -n 1 | xargs kill
     ps ax | grep git-daemon | awk '{print $1}' | head -n 1 | xargs kill
     ps ax | grep elasticmq-server | awk '{print $1}' | head -n 1 | xargs kill
+    ps ax | grep elasticmq-server | awk '{print $1}' | head -n 1 | xargs kill
+    ps ax | grep local-github | awk '{print $1}' | head -n 1 | xargs kill
     sleep 3
     rm -rf $TMPDIR
+    rm -rf tmp/github-dir.txt
 }
 
 run_minio
 run_git_repo
 run_elastic_mq
+run_github_local
+
 run_test
 
 clean_up

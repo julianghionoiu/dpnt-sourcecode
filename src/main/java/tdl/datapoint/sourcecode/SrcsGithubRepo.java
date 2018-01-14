@@ -27,8 +27,6 @@ public class SrcsGithubRepo {
 
     private Repository repository;
 
-    private String cloneUrl;
-
     public SrcsGithubRepo(String repoName) {
         this.repoName = repoName;
         this.client = createGithubClient();
