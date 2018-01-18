@@ -23,10 +23,12 @@ public class Handler implements RequestHandler<Map<String, Object>, Response> {
             return new Response("ok");
         } catch (Exception ex) {
             java.util.logging.Logger.getLogger(Handler.class.getName()).log(Level.SEVERE, null, ex);
+            //Debt This path is not covered with tests
             return new Response("error: " + ex.getMessage());
         }
     }
 
+    //Debt should be private and we should construct the Map as AWS does
     public void uploadCommitToRepo(S3BucketEvent event) throws Exception {
         SrcsGithubRepo repo = createRepository(event.getKey());
         S3Object s3Object = getS3Object(event);

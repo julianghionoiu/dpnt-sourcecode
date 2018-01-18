@@ -1,11 +1,6 @@
 package tdl.datapoint.sourcecode;
 
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.S3Object;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -28,7 +23,7 @@ public class S3SrcsToGitExporterTest {
 
     @Test
     public void export() throws Exception {
-        AmazonS3 client = ServiceMock.createS3Client();
+        AmazonS3 client = LocalS3Bucket.createS3Client();
         createBucketIfNotExists(client, BUCKET);
         String key = "test.srcs";
         Path path = Paths.get("src/test/resources/test.srcs");

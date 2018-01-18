@@ -1,10 +1,5 @@
 package tdl.datapoint.sourcecode;
 
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.services.sqs.AmazonSQS;
-import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
-import com.amazonaws.services.sqs.model.GetQueueUrlResult;
-import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
 import static org.junit.Assert.*;
 import org.junit.Rule;
 import org.junit.Test;
@@ -18,7 +13,7 @@ public class SQSMessageQueueTest {
     @Test
     public void sendMessage() {
         String queueName = "queue2";
-        String url = ServiceMock.getQueueUrlOrCreate(queueName);
+        String url = LocalSQSQueue.getQueueUrlOrCreate(queueName);
         SQSMessageQueue queue = new SQSMessageQueue();
         environmentVariables.set(SQSMessageQueue.ENV_SQS_QUEUE_URL, url);
 

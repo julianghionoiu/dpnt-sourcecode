@@ -47,11 +47,11 @@ public class SourcecodeDatapointAcceptanceTest {
         environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_PORT, GITHUB_PORT);
         environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_PROTOCOL, GITHUB_PROTOCOL);
         
-        environmentVariables.set(SQSMessageQueue.ENV_SQS_ENDPOINT, ServiceMock.ELASTIC_MQ_URL);
-        environmentVariables.set(SQSMessageQueue.ENV_SQS_REGION, ServiceMock.ELASTIC_MQ_REGION);
+        environmentVariables.set(SQSMessageQueue.ENV_SQS_ENDPOINT, LocalSQSQueue.ELASTIC_MQ_URL);
+        environmentVariables.set(SQSMessageQueue.ENV_SQS_REGION, LocalSQSQueue.ELASTIC_MQ_REGION);
     }
 
-    private S3BucketEvent createEvent() {
+    private S3BucketEvent createS3BucketEvent() {
         S3BucketEvent event = mock(S3BucketEvent.class);
         when(event.getBucket())
                 .thenReturn(BUCKET);
@@ -61,20 +61,22 @@ public class SourcecodeDatapointAcceptanceTest {
     }
 
     private Handler mockHandler() throws IOException, GitAPIException, Exception {
+        //Debt DO not mock or spy the production code
         Handler handler = spy(Handler.class);
 
-        s3Client = ServiceMock.createS3Client();
+        s3Client = LocalS3Bucket.createS3Client();
         when(handler.createDefaultS3Client())
                 .thenReturn(s3Client);
         
 
         Path path = Paths.get("src/test/resources/test.srcs");
+        createBucketIfNotExists(s3Client, BUCKET);
         s3Client.putObject(BUCKET, KEY, path.toFile());
-        createBucketIfNotExists(s3Client, "localbucket");
 
+        //Debt part of setup
         String queueName = "queue2";
-        queueUrl = ServiceMock.getQueueUrlOrCreate(queueName);
-        ServiceMock.purgeQueue(queueName);
+        queueUrl = LocalSQSQueue.getQueueUrlOrCreate(queueName);
+        LocalSQSQueue.purgeQueue(queueName);
         environmentVariables.set(SQSMessageQueue.ENV_SQS_QUEUE_URL, queueUrl);
         return handler;
     }
@@ -105,7 +107,7 @@ public class SourcecodeDatapointAcceptanceTest {
          * the SQS Queue
          */
         Handler handler = mockHandler();
-        S3BucketEvent event = createEvent();
+        S3BucketEvent event = createS3BucketEvent();
         handler.uploadCommitToRepo(event);
 
         /**
@@ -115,7 +117,7 @@ public class SourcecodeDatapointAcceptanceTest {
          * (check ElasticMq) We clone the REPO, it should contain the expected
          * commits
          */
-        String expected = ServiceMock.getFirstMessageBody(queueUrl);
+        String expected = LocalSQSQueue.getFirstMessageBody(queueUrl);
         assertTrue(expected.startsWith("file:///"));
         assertTrue(expected.endsWith("test3"));
     }
@@ -127,10 +129,10 @@ public class SourcecodeDatapointAcceptanceTest {
          * repo already exists: https://github.com/Challenge/username
          */
         Handler handler = mockHandler();
-        S3BucketEvent event = createEvent();
+        S3BucketEvent event = createS3BucketEvent();
         handler.uploadCommitToRepo(event);
 
-        String expected = ServiceMock.getFirstMessageBody(queueUrl);
+        String expected = LocalSQSQueue.getFirstMessageBody(queueUrl);
         assertTrue(expected.startsWith("file:///"));
         assertTrue(expected.endsWith("test3"));
     }

@@ -41,11 +41,11 @@ public class SrcsGithubRepo {
         this.service = new RepositoryService(client);
     }
 
-    public void createNewRepositoryIfNotExists() {
+    public void createNewRepositoryIfNotExists() throws GithubInteractionException {
         try {
             createNewRepository();
         } catch (IOException e) {
-            //DO NOTHING
+            throw new GithubInteractionException("Failed to create repo", e);
         }
     }
 
