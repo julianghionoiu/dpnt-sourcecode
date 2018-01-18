@@ -8,10 +8,11 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 public class LocalS3Bucket {
-    private static final String MINIO_URL = "http://127.0.0.1:9000";
-    private static final String MINIO_REGION = "us-east-1";
-    private static final String MINIO_ACCESS_KEY = "minio_access_key";
-    private static final String MINIO_SECRET_KEY = "minio_secret_key";
+
+    public static final String MINIO_URL = "http://127.0.0.1:9000";
+    public static final String MINIO_REGION = "us-east-1";
+    public static final String MINIO_ACCESS_KEY = "minio_access_key";
+    public static final String MINIO_SECRET_KEY = "minio_secret_key";
 
     //Debt this should move into the Lambda code and inject the parameters
     public static AmazonS3 createS3Client() {

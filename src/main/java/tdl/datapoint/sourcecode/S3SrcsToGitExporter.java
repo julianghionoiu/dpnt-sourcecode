@@ -1,5 +1,9 @@
 package tdl.datapoint.sourcecode;
 
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
@@ -18,12 +22,20 @@ import tdl.record.sourcecode.snapshot.file.ToGitConverter;
 
 /**
  * This class exports file srcs at S3 repository to existing Git repository.
- * This will only be exported to local repository. Pushing to remote will not
- * be handled here.
+ * This will only be exported to local repository. Pushing to remote will not be
+ * handled here.
  *
  * @author Petra Barus <petra.barus@gmail.com>
  */
 public class S3SrcsToGitExporter {
+
+    public static final String ENV_S3_ENDPOINT = "S3_ENDPOINT";
+
+    public static final String ENV_S3_REGION = "S3_REGION";
+
+    public static final String ENV_S3_ACCESS_KEY = "S3_ACCESS_KEY";
+
+    public static final String ENV_S3_SECRET_KEY = "S3_SECRET_KEY";
 
     private final S3Object s3Object;
 
@@ -53,8 +65,21 @@ public class S3SrcsToGitExporter {
     }
 
     public static AmazonS3 createDefaultS3Client() {
-        return AmazonS3ClientBuilder.standard()
-                .build();
+        AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
+        String endpoint = System.getenv(ENV_S3_ENDPOINT);
+        String region = System.getenv(ENV_S3_REGION);
+        if (endpoint != null && region != null) {
+            AwsClientBuilder.EndpointConfiguration endpointConfiguration = new AwsClientBuilder.EndpointConfiguration(endpoint, region);
+            builder = builder.withPathStyleAccessEnabled(true)
+                    .withEndpointConfiguration(endpointConfiguration);
+        }
+        String accessKey = System.getenv(ENV_S3_ACCESS_KEY);
+        String secretKey = System.getenv(ENV_S3_SECRET_KEY);
+        if (accessKey != null && secretKey != null) {
+            AWSCredentials credentialsProvider = new BasicAWSCredentials(accessKey, secretKey);
+            builder = builder.withCredentials(new AWSStaticCredentialsProvider(credentialsProvider));
+        }
+        return builder.build();
     }
 
     public Path getGitPath() {

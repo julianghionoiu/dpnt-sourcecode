@@ -1,10 +1,8 @@
 package tdl.datapoint.sourcecode;
 
 import com.amazonaws.services.s3.AmazonS3;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import org.eclipse.jgit.api.errors.GitAPIException;
 import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Rule;
@@ -49,8 +47,11 @@ public class SourcecodeDatapointAcceptanceTest {
         
         environmentVariables.set(SQSMessageQueue.ENV_SQS_ENDPOINT, LocalSQSQueue.ELASTIC_MQ_URL);
         environmentVariables.set(SQSMessageQueue.ENV_SQS_REGION, LocalSQSQueue.ELASTIC_MQ_REGION);
-
-        //Debt Inject the AWS KEY ID and TOKEN to build the S3 client
+        
+        environmentVariables.set(S3SrcsToGitExporter.ENV_S3_ENDPOINT, LocalS3Bucket.MINIO_URL);
+        environmentVariables.set(S3SrcsToGitExporter.ENV_S3_REGION, LocalS3Bucket.MINIO_REGION);
+        environmentVariables.set(S3SrcsToGitExporter.ENV_S3_ACCESS_KEY, LocalS3Bucket.MINIO_ACCESS_KEY);
+        environmentVariables.set(S3SrcsToGitExporter.ENV_S3_SECRET_KEY, LocalS3Bucket.MINIO_SECRET_KEY);
     }
 
     private S3BucketEvent createS3BucketEvent() {
@@ -62,16 +63,12 @@ public class SourcecodeDatapointAcceptanceTest {
         return event;
     }
 
-    private Handler mockHandler() {
-        //Debt DO not mock or spy the production code
-        Handler handler = spy(Handler.class);
+    private Handler mockHandler(String srcsPath) {
+        Handler handler = new Handler();
 
         s3Client = LocalS3Bucket.createS3Client();
-        when(handler.createDefaultS3Client())
-                .thenReturn(s3Client);
-        
 
-        Path path = Paths.get("src/test/resources/test.srcs");
+        Path path = Paths.get(srcsPath);
         createBucketIfNotExists(s3Client, BUCKET);
         s3Client.putObject(BUCKET, KEY, path.toFile());
 
@@ -110,8 +107,8 @@ public class SourcecodeDatapointAcceptanceTest {
          */
 
         //Debt The SRCS file should be an explicit input
-
-        Handler handler = mockHandler();
+        String srcsPath = "src/test/resources/test.srcs";
+        Handler handler = mockHandler(srcsPath);
         S3BucketEvent event = createS3BucketEvent();
         handler.uploadCommitToRepo(event);
 
@@ -136,7 +133,8 @@ public class SourcecodeDatapointAcceptanceTest {
          * Same as the previous test, the only difference is that the target
          * repo already exists: https://github.com/Challenge/username
          */
-        Handler handler = mockHandler();
+        String srcsPath = "src/test/resources/test.srcs";
+        Handler handler = mockHandler(srcsPath);
         S3BucketEvent event = createS3BucketEvent();
         handler.uploadCommitToRepo(event);
 
