@@ -49,6 +49,8 @@ public class SourcecodeDatapointAcceptanceTest {
         
         environmentVariables.set(SQSMessageQueue.ENV_SQS_ENDPOINT, LocalSQSQueue.ELASTIC_MQ_URL);
         environmentVariables.set(SQSMessageQueue.ENV_SQS_REGION, LocalSQSQueue.ELASTIC_MQ_REGION);
+
+        //Debt Inject the AWS KEY ID and TOKEN to build the S3 client
     }
 
     private S3BucketEvent createS3BucketEvent() {
@@ -60,7 +62,7 @@ public class SourcecodeDatapointAcceptanceTest {
         return event;
     }
 
-    private Handler mockHandler() throws IOException, GitAPIException, Exception {
+    private Handler mockHandler() {
         //Debt DO not mock or spy the production code
         Handler handler = spy(Handler.class);
 
@@ -83,12 +85,12 @@ public class SourcecodeDatapointAcceptanceTest {
 
     @Test
     public void create_repo_and_uploads_commits() throws Exception {
-        /**
+        /*
          * Setup: - an existing S3 bucket (Minio) - no initial repo - an SQS
          * Event queue (ElasticMq)
          */
 
-        /**
+        /*
          * Input:
          *
          * Generate a new, unique username Upload of a SRCS file to the bucket.
@@ -96,7 +98,7 @@ public class SourcecodeDatapointAcceptanceTest {
          * Simulate the triggering of the lambda via an S3 event. (the input
          * should be the KEY of the newly updated file)
          */
-        /**
+        /*
          * Notes on the implementation: - the lambda receives an event from S3,
          * for a key like "challenge/username/file.srcs" - based on the key of
          * file we construct a Github URL like:
@@ -106,25 +108,31 @@ public class SourcecodeDatapointAcceptanceTest {
          * the commits - we push the commits - we push the URL as an event to
          * the SQS Queue
          */
+
+        //Debt The SRCS file should be an explicit input
+
         Handler handler = mockHandler();
         S3BucketEvent event = createS3BucketEvent();
         handler.uploadCommitToRepo(event);
 
-        /**
+        /*
          * Output (the assertions):
          *
          * An event should be publish with a REPO url on the SQS Event Queue.
-         * (check ElasticMq) We clone the REPO, it should contain the expected
+         * (check ElasticMq) We clone the REPO, it should contain the actual
          * commits
          */
-        String expected = LocalSQSQueue.getFirstMessageBody(queueUrl);
-        assertTrue(expected.startsWith("file:///"));
-        assertTrue(expected.endsWith("test3"));
+        String actual = LocalSQSQueue.getFirstMessageBody(queueUrl);
+        assertTrue(actual.startsWith("file:///"));
+        //Debt Assert on the entire Github link
+        assertTrue(actual.endsWith("test3"));
+
+        //Debt Assert that the contents match the SRCS file (commit messages)
     }
 
     @Test
     public void push_commits_to_existing_repo() throws Exception {
-        /**
+        /*
          * Same as the previous test, the only difference is that the target
          * repo already exists: https://github.com/Challenge/username
          */

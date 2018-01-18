@@ -20,12 +20,13 @@ public class SQSMessageQueue {
         this.client = client;
     }
 
-    public SQSMessageQueue() {
+    SQSMessageQueue() {
         this.client = createSqsClient();
     }
 
-    public static AmazonSQS createSqsClient() {
+    private static AmazonSQS createSqsClient() {
         AmazonSQSClientBuilder builder = AmazonSQSClientBuilder.standard();
+        //Debt No env variables deeper than the Handler
         String endpoint = System.getenv(ENV_SQS_ENDPOINT);
         String region = System.getenv(ENV_SQS_REGION);
         if (endpoint != null && region != null) {
