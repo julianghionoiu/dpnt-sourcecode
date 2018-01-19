@@ -5,6 +5,8 @@ import org.eclipse.egit.github.core.client.GitHubClient;
 import com.tngtech.java.junit.dataprovider.DataProviderRunner;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -19,6 +21,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 
 @RunWith(DataProviderRunner.class)
@@ -28,6 +31,9 @@ public class SrcsGithubRepoTest {
     public EnvironmentVariables environmentVariables = new EnvironmentVariables();
 
     public GitHubClient client;
+
+    @Rule
+    public TemporaryFolder folder = new TemporaryFolder();
 
     @Before
     public void setUp() {
@@ -47,7 +53,7 @@ public class SrcsGithubRepoTest {
         File directory = getRepoDirPath().resolve("repo1").toFile();
         FileUtils.deleteDirectory(directory);
         Git.init().setDirectory(directory).call();
-        
+
         SrcsGithubRepo repo = new SrcsGithubRepo("repo1");
         assertTrue(repo.doesGithubRepoExist());
         assertTrue(repo.getUri().startsWith("file:///tmp"));
@@ -70,15 +76,18 @@ public class SrcsGithubRepoTest {
     public void createNewRepository() throws IOException, GitAPIException {
         File directory = getRepoDirPath().resolve("repository1").toFile();
         FileUtils.deleteDirectory(directory);
-        
+
         SrcsGithubRepo repo1 = new SrcsGithubRepo("repository1");
         assertFalse(repo1.doesGithubRepoExist());
-        
+
         repo1.createNewRepository();
-        
+
         assertTrue(repo1.doesGithubRepoExist());
-        assertTrue(repo1.getUri().startsWith("file:///tmp"));
-        assertTrue(repo1.getUri().contains("repository1"));
+        String uri = repo1.getUri();
+        assertTrue(uri.startsWith("file:///tmp"));
+        assertTrue(uri.contains("repository1"));
+        assertTrue(isUriGit(uri));
+
     }
 
     public String readResourceFile(String filename) {
@@ -87,6 +96,25 @@ public class SrcsGithubRepoTest {
             return FileUtils.readFileToString(path.toFile(), Charset.defaultCharset());
         } catch (IOException ex) {
             return "";
+        }
+    }
+
+    private boolean isUriGit(String uri) {
+        try {
+            Git.open(new File(new URI(uri)));
+            File gitDir = folder.newFolder();
+            Git.cloneRepository()
+                    .setDirectory(gitDir)
+                    .setURI(uri)
+                    .call();
+            boolean isGitDirCreated = gitDir
+                    .toPath()
+                    .resolve(".git")
+                    .toFile()
+                    .exists();
+            return isGitDirCreated;
+        } catch (IOException | URISyntaxException | GitAPIException ex) {
+            return false;
         }
     }
 
