@@ -57,7 +57,7 @@ public class Handler implements RequestHandler<Map<String, Object>, Response> {
                 .call();
     }
 
-    public Git getGitRepo(SrcsGithubRepo repo) throws Exception {
+    private Git getGitRepo(SrcsGithubRepo repo) throws Exception {
         Path directory = Files.createTempDirectory("tmp");
         return Git.cloneRepository()
                 .setURI(repo.getUri())
@@ -66,12 +66,12 @@ public class Handler implements RequestHandler<Map<String, Object>, Response> {
                 .call();
     }
 
-    public S3Object getS3Object(S3BucketEvent event) {
+    private S3Object getS3Object(S3BucketEvent event) {
         AmazonS3 s3Client = createDefaultS3Client();
         return s3Client.getObject(event.getBucket(), event.getKey());
     }
 
-    public AmazonS3 createDefaultS3Client() {
+    private AmazonS3 createDefaultS3Client() {
         return S3SrcsToGitExporter.createDefaultS3Client();
     }
 }
