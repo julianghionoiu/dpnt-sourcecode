@@ -67,6 +67,12 @@ public class SourcecodeDatapointAcceptanceTest {
         environmentVariables.set(S3SrcsToGitExporter.ENV_S3_REGION, LocalS3Bucket.MINIO_REGION);
         environmentVariables.set(S3SrcsToGitExporter.ENV_S3_ACCESS_KEY, LocalS3Bucket.MINIO_ACCESS_KEY);
         environmentVariables.set(S3SrcsToGitExporter.ENV_S3_SECRET_KEY, LocalS3Bucket.MINIO_SECRET_KEY);
+
+        //
+        String queueName = "queue2";
+        queueUrl = LocalSQSQueue.getQueueUrlOrCreate(queueName);
+        LocalSQSQueue.purgeQueue(queueName);
+        environmentVariables.set(SQSMessageQueue.ENV_SQS_QUEUE_URL, queueUrl);
     }
 
     private S3BucketEvent createS3BucketEvent(String key) {
@@ -86,12 +92,6 @@ public class SourcecodeDatapointAcceptanceTest {
         Path path = Paths.get(srcsPath);
         createBucketIfNotExists(s3Client, BUCKET);
         s3Client.putObject(BUCKET, key, path.toFile());
-
-        //Debt part of setup
-        String queueName = "queue2";
-        queueUrl = LocalSQSQueue.getQueueUrlOrCreate(queueName);
-        LocalSQSQueue.purgeQueue(queueName);
-        environmentVariables.set(SQSMessageQueue.ENV_SQS_QUEUE_URL, queueUrl);
         return handler;
     }
 
@@ -120,7 +120,6 @@ public class SourcecodeDatapointAcceptanceTest {
          * the commits - we push the commits - we push the URL as an event to
          * the SQS Queue
          */
-        //Debt The SRCS file should be an explicit input
         String srcsPath = "src/test/resources/test.srcs";
         String key = "challenge/test3/file.srcs";
 
