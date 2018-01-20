@@ -2,12 +2,18 @@ package tdl.datapoint.sourcecode;
 
 import com.amazonaws.services.s3.AmazonS3;
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.revwalk.RevCommit;
@@ -18,12 +24,13 @@ import org.junit.Test;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
 import org.junit.rules.TemporaryFolder;
 import static org.mockito.Mockito.*;
+import tdl.record.sourcecode.snapshot.file.Header;
+import tdl.record.sourcecode.snapshot.file.Reader;
+import tdl.record.sourcecode.snapshot.file.Segment;
 
 public class SourcecodeDatapointAcceptanceTest {
 
     private static final String BUCKET = "localbucket";
-
-    private static final String KEY = "challenge/test3/file.srcs";
 
     private static final String GITHUB_USERNAME = "dpnttest";
 
@@ -62,23 +69,23 @@ public class SourcecodeDatapointAcceptanceTest {
         environmentVariables.set(S3SrcsToGitExporter.ENV_S3_SECRET_KEY, LocalS3Bucket.MINIO_SECRET_KEY);
     }
 
-    private S3BucketEvent createS3BucketEvent() {
+    private S3BucketEvent createS3BucketEvent(String key) {
         S3BucketEvent event = mock(S3BucketEvent.class);
         when(event.getBucket())
                 .thenReturn(BUCKET);
         when(event.getKey())
-                .thenReturn(KEY);
+                .thenReturn(key);
         return event;
     }
 
-    private Handler createHandler(String srcsPath) {
+    private Handler createHandler(String srcsPath, String key) {
         Handler handler = new Handler();
 
         s3Client = LocalS3Bucket.createS3Client();
 
         Path path = Paths.get(srcsPath);
         createBucketIfNotExists(s3Client, BUCKET);
-        s3Client.putObject(BUCKET, KEY, path.toFile());
+        s3Client.putObject(BUCKET, key, path.toFile());
 
         //Debt part of setup
         String queueName = "queue2";
@@ -95,7 +102,7 @@ public class SourcecodeDatapointAcceptanceTest {
          * Event queue (ElasticMq)
          */
 
-        /*
+ /*
          * Input:
          *
          * Generate a new, unique username Upload of a SRCS file to the bucket.
@@ -103,7 +110,7 @@ public class SourcecodeDatapointAcceptanceTest {
          * Simulate the triggering of the lambda via an S3 event. (the input
          * should be the KEY of the newly updated file)
          */
-        /*
+ /*
          * Notes on the implementation: - the lambda receives an event from S3,
          * for a key like "challenge/username/file.srcs" - based on the key of
          * file we construct a Github URL like:
@@ -115,8 +122,10 @@ public class SourcecodeDatapointAcceptanceTest {
          */
         //Debt The SRCS file should be an explicit input
         String srcsPath = "src/test/resources/test.srcs";
-        Handler handler = createHandler(srcsPath);
-        S3BucketEvent event = createS3BucketEvent();
+        String key = "challenge/test3/file.srcs";
+
+        Handler handler = createHandler(srcsPath, key);
+        S3BucketEvent event = createS3BucketEvent(key);
         handler.uploadCommitToRepo(event);
 
         /*
@@ -133,8 +142,9 @@ public class SourcecodeDatapointAcceptanceTest {
 
         Git git = Git.open(new File(new URI(actual)));
         assertEquals(6, getCommitCount(git));
-        List<String> commitMessages = getCommitMessages(git);
-        assertEquals(commitMessages.get(1), "Sun Dec 24 06:43:38 WIB 2017");
+        List<String> expectedMessages = getCommitMessagesFromSrcs(Paths.get(srcsPath));
+        List<String> actualMessages = getCommitMessagesFromGit(git);
+        assertEquals(expectedMessages, actualMessages);
     }
 
     @Test
@@ -144,18 +154,21 @@ public class SourcecodeDatapointAcceptanceTest {
          * repo already exists: https://github.com/Challenge/username
          */
         String srcsPath = "src/test/resources/test.srcs";
-        Handler handler = createHandler(srcsPath);
-        S3BucketEvent event = createS3BucketEvent();
+        String key = "challenge/test4/file.srcs";
+
+        Handler handler = createHandler(srcsPath, key);
+        S3BucketEvent event = createS3BucketEvent(key);
         handler.uploadCommitToRepo(event);
 
         String actual = LocalSQSQueue.getFirstMessageBody(queueUrl);
         assertTrue(actual.startsWith("file:///"));
-        assertTrue(actual.endsWith("test3"));
+        assertTrue(actual.endsWith("test4"));
 
         Git git = Git.open(new File(new URI(actual)));
-        assertEquals(12, getCommitCount(git)); //appended
-        List<String> commitMessages = getCommitMessages(git);
-        assertEquals(commitMessages.get(7), "Sun Dec 24 06:43:38 WIB 2017");
+        assertEquals(6, getCommitCount(git)); //appended
+        List<String> expectedMessages = getCommitMessagesFromSrcs(Paths.get(srcsPath));
+        List<String> actualMessages = getCommitMessagesFromGit(git);
+        assertEquals(expectedMessages, actualMessages);
     }
 
     @SuppressWarnings("deprecation")
@@ -163,17 +176,6 @@ public class SourcecodeDatapointAcceptanceTest {
         if (!client.doesBucketExist(bucket)) {
             client.createBucket(bucket);
         }
-    }
-
-    private static List<String> getCommitMessages(Git git) throws GitAPIException {
-        List<String> messages = new ArrayList<>();
-        Iterable<RevCommit> commits = git.log().call();
-        Iterator<RevCommit> it = commits.iterator();
-        while (it.hasNext()) {
-            RevCommit commit = it.next();
-            messages.add(commit.getFullMessage());
-        }
-        return messages;
     }
 
     private static int getCommitCount(Git git) throws GitAPIException {
@@ -186,4 +188,30 @@ public class SourcecodeDatapointAcceptanceTest {
         }
         return count;
     }
+
+    private static List<String> getCommitMessagesFromSrcs(Path path) throws IOException {
+        Reader reader = new Reader(path.toFile());
+        List<String> messages = new ArrayList<>();
+        while (reader.hasNext()) {
+            Header header = reader.getFileHeader();
+            Segment segment = reader.nextSegment();
+            Date timestamp = new Date((header.getTimestamp() + segment.getTimestampSec()) * 1000L);
+            String message = timestamp.toString();
+            messages.add(message);
+        }
+        return messages;
+    }
+
+    private static List<String> getCommitMessagesFromGit(Git git) throws GitAPIException {
+        List<String> messages = new ArrayList<>();
+        Iterable<RevCommit> commits = git.log().call();
+        Iterator<RevCommit> it = commits.iterator();
+        while (it.hasNext()) {
+            RevCommit commit = it.next();
+            messages.add(commit.getFullMessage());
+        }
+        Collections.reverse(messages);
+        return messages;
+    }
+
 }
