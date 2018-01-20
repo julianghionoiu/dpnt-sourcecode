@@ -1,6 +1,8 @@
 package tdl.datapoint.sourcecode;
 
 import com.amazonaws.services.s3.AmazonS3;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -12,6 +14,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.eclipse.jgit.api.Git;
@@ -48,8 +51,6 @@ public class SourcecodeDatapointAcceptanceTest {
     @Rule
     public TemporaryFolder folder = new TemporaryFolder();
 
-    private AmazonS3 s3Client;
-
     private String queueUrl;
 
     @Before
@@ -84,14 +85,16 @@ public class SourcecodeDatapointAcceptanceTest {
         return event;
     }
 
-    private Handler createHandler(String srcsPath, String key) {
-        Handler handler = new Handler();
-
-        s3Client = LocalS3Bucket.createS3Client();
-
+    private void uploadSrcs(String srcsPath, String key) {
+        AmazonS3 s3Client = LocalS3Bucket.createS3Client();
         Path path = Paths.get(srcsPath);
         createBucketIfNotExists(s3Client, BUCKET);
         s3Client.putObject(BUCKET, key, path.toFile());
+    }
+
+    private Handler createHandler() {
+        Handler handler = new Handler();
+
         return handler;
     }
 
@@ -122,10 +125,13 @@ public class SourcecodeDatapointAcceptanceTest {
          */
         String srcsPath = "src/test/resources/test.srcs";
         String key = "challenge/test3/file.srcs";
+        uploadSrcs(srcsPath, key);
 
-        Handler handler = createHandler(srcsPath, key);
-        S3BucketEvent event = createS3BucketEvent(key);
-        handler.uploadCommitToRepo(event);
+        String json = getJsonInput(BUCKET, key);
+        Map<String, Object> input = getLambdaInputFromJson(json);
+
+        Handler handler = new Handler();
+        handler.handleRequest(input, null);
 
         /*
          * Output (the assertions):
@@ -154,10 +160,13 @@ public class SourcecodeDatapointAcceptanceTest {
          */
         String srcsPath = "src/test/resources/test.srcs";
         String key = "challenge/test4/file.srcs";
+        uploadSrcs(srcsPath, key);
 
-        Handler handler = createHandler(srcsPath, key);
-        S3BucketEvent event = createS3BucketEvent(key);
-        handler.uploadCommitToRepo(event);
+        String json = getJsonInput(BUCKET, key);
+        Map<String, Object> input = getLambdaInputFromJson(json);
+
+        Handler handler = new Handler();
+        handler.handleRequest(input, null);
 
         String actual = LocalSQSQueue.getFirstMessageBody(queueUrl);
         assertTrue(actual.startsWith("file:///"));
@@ -213,4 +222,15 @@ public class SourcecodeDatapointAcceptanceTest {
         return messages;
     }
 
+    private static String getJsonInput(String bucket, String key) {
+        return "{\"Records\":[{\"s3\":{\"bucket\":{\"name\":\"" + bucket + "\"},"
+                + " \"object\":{\"key\":\"" + key + "\"}}}]}";
+    }
+
+    private static Map<String, Object> getLambdaInputFromJson(String json) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> map = mapper.readValue(json, new TypeReference<Map<String, Object>>() {
+        });
+        return map;
+    }
 }

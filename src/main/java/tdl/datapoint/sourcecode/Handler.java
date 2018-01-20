@@ -29,7 +29,7 @@ public class Handler implements RequestHandler<Map<String, Object>, Response> {
     }
 
     //Debt should be private and we should construct the Map as AWS does
-    public void uploadCommitToRepo(S3BucketEvent event) throws Exception {
+    private void uploadCommitToRepo(S3BucketEvent event) throws Exception {
         SrcsGithubRepo repo = createRepository(event.getKey());
         S3Object s3Object = getS3Object(event);
         Git git = getGitRepo(repo);
