@@ -1,0 +1,19 @@
+*.class
+.gradle
+.idea
+/build/
+/bin/
+/.settings/
+.project
+.classpath
+out
+
+# Serverless directories
+.serverless
+
+/.nb-gradle/
+node_modules
+
+tmp
+minio
+elasticmq-server.jar

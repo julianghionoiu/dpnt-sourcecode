@@ -1,0 +1,24 @@
+################################################################################
+#
+################################################################################
+service: srcs-github-export
+
+provider:
+    name: aws
+    runtime: java8
+    stage: ${opt:stage, 'dev'}
+    environment:
+        GITHUB_USERNAME:  ${file(config.{$self:provider.stage}.json):GITHUB_USERNAME}
+        SQS_QUEUE_URL: ${file(config.{$self:provider.stage}.json):SQS_QUEUE_URL}
+        GITHUB_TOKEN: ${file(config.{$self:provider.stage}.json):GITHUB_TOKEN}
+
+package:
+    artifact: build/distributions/tdl-srcs-github-export.zip
+
+functions:
+    srcs-github-export:
+        #TODO:
+        # - Rename handler when new function added
+        # - Add external S3 event attaching plugin
+        # - Configure memory and timeout
+        handler: tdl.datapoint.sourcecode.Handler

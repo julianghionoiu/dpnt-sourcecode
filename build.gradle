@@ -1,0 +1,61 @@
+apply plugin: 'java'
+
+repositories {
+    mavenCentral()
+    maven {
+        url "https://dl.bintray.com/julianghionoiu/maven"
+    }
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+dependencies {
+    compile (
+        'com.amazonaws:aws-lambda-java-core:1.1.0',
+        'com.amazonaws:aws-lambda-java-log4j:1.0.0',
+        'com.amazonaws:aws-java-sdk-s3:1.11.254',
+        'com.amazonaws:aws-java-sdk-sqs:1.11.254',
+        'commons-io:commons-io:2.5',
+        'com.fasterxml.jackson.core:jackson-core:2.8.5',
+        'com.fasterxml.jackson.core:jackson-databind:2.8.5',
+        'com.fasterxml.jackson.core:jackson-annotations:2.8.5',
+        'org.eclipse.jgit:org.eclipse.jgit:4.8.0.201706111038-r',
+        'org.eclipse.jgit:org.eclipse.jgit.archive:4.8.0.201706111038-r',
+        'ro.ghionoiu:dev-sourcecode-record:0.0.10',
+        'org.eclipse.mylyn.github:org.eclipse.egit.github.core:2.1.5'
+    )
+    
+    testCompile(
+        'junit:junit:4.12',
+        'com.tngtech.java:junit-dataprovider:1.9.3',
+        'com.github.tomakehurst:wiremock:2.12.0',
+        'com.github.stefanbirkner:system-rules:1.16.0',
+        'org.mockito:mockito-all:1.10.19'
+    )
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+}
+
+
+apply plugin: "jacoco"
+
+// Task for building the zip file for upload
+task buildZip(type: Zip) {
+    // TODO: Rename to other when adding new function
+    baseName = "tdl-srcs-github-export"
+    from compileJava
+    from processResources
+    into('lib') {
+        from configurations.runtime
+    }
+}
+
+build.dependsOn buildZip
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '3.5'
+}
