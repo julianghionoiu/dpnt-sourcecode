@@ -1,7 +1,6 @@
 package tdl.datapoint.sourcecode;
 
 import com.amazonaws.services.lambda.runtime.Context;
-import com.amazonaws.services.s3.AmazonS3;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.eclipse.jgit.api.Git;
@@ -13,15 +12,11 @@ import org.junit.contrib.java.lang.system.EnvironmentVariables;
 import org.junit.rules.TemporaryFolder;
 import tdl.datapoint.sourcecode.support.LocalS3Bucket;
 import tdl.datapoint.sourcecode.support.LocalSQSQueue;
-import tdl.record.sourcecode.snapshot.file.Header;
-import tdl.record.sourcecode.snapshot.file.Reader;
-import tdl.record.sourcecode.snapshot.file.Segment;
+import tdl.datapoint.sourcecode.support.TestSrcsFile;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 
 import static org.hamcrest.CoreMatchers.*;
@@ -30,16 +25,10 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 public class SourcecodeDatapointAcceptanceTest {
 
-    private static final String BUCKET = "localbucket";
-
     private static final String GITHUB_USERNAME = "dpnttest";
-
     private static final String GITHUB_TOKEN = "test";
-
     private static final String GITHUB_HOST = "localhost";
-
     private static final String GITHUB_PORT = "9556";
-
     private static final String GITHUB_PROTOCOL = "http";
 
     private static final Context NO_CONTEXT = null;
@@ -78,39 +67,6 @@ public class SourcecodeDatapointAcceptanceTest {
         sourceCodeUploadHandler = new SourceCodeUploadHandler();
     }
 
-    private String uploadSrcsToS3(File srcsFile, String key) {
-        AmazonS3 s3Client = LocalS3Bucket.createS3Client();
-        createBucketIfNotExists(s3Client, BUCKET);
-        s3Client.putObject(BUCKET, key, srcsFile);
-        return "{\"Records\":[{\"s3\":{\"bucket\":{\"name\":\"" + BUCKET + "\"},"
-                + " \"object\":{\"key\":\"" + key + "\"}}}]}";
-    }
-
-    static class TestSrcsFile {
-        Path resourcePath;
-
-        TestSrcsFile(String name) {
-            resourcePath = Paths.get("src/test/resources/", name);
-        }
-
-        File asFile() {
-            return resourcePath.toFile();
-        }
-
-        List<String> getCommitMessages() throws IOException {
-            Reader reader = new Reader(asFile());
-            List<String> messages = new ArrayList<>();
-            while (reader.hasNext()) {
-                Header header = reader.getFileHeader();
-                Segment segment = reader.nextSegment();
-                Date timestamp = new Date((header.getTimestamp() + segment.getTimestampSec()) * 1000L);
-                String message = timestamp.toString();
-                messages.add(message);
-            }
-            return messages;
-        }
-    }
-
     @Test
     public void create_repo_and_uploads_commits() throws Exception {
         // Given - The participant produces SRCS files while solving a challenge
@@ -125,7 +81,7 @@ public class SourcecodeDatapointAcceptanceTest {
 
         // When - Upload event happens
         sourceCodeUploadHandler.handleRequest(
-                convertToMap(uploadSrcsToS3(srcs1.asFile(), s3destination)),
+                convertToMap(LocalS3Bucket.putObject(srcs1.asFile(), s3destination)),
                 NO_CONTEXT);
 
         // Then - Repo is created with the contents of the SRCS file
@@ -137,7 +93,7 @@ public class SourcecodeDatapointAcceptanceTest {
 
         // When - Another upload event happens
         sourceCodeUploadHandler.handleRequest(
-                convertToMap(uploadSrcsToS3(srcs2.asFile(), s3destination)),
+                convertToMap(LocalS3Bucket.putObject(srcs2.asFile(), s3destination)),
                 NO_CONTEXT);
 
         // Then - The SRCS file is appended to the repo
@@ -152,15 +108,8 @@ public class SourcecodeDatapointAcceptanceTest {
         return UUID.randomUUID().toString().replaceAll("-","");
     }
 
-    @SuppressWarnings("deprecation")
-    private void createBucketIfNotExists(AmazonS3 client, String bucket) {
-        if (!client.doesBucketExist(bucket)) {
-            client.createBucket(bucket);
-        }
-    }
-
-    private static List<String> getCommitMessagesFromGit(String actual) throws Exception {
-        Git git = Git.open(new File(new URI(actual)));
+    private static List<String> getCommitMessagesFromGit(String gitRepoUrl) throws Exception {
+        Git git = Git.open(new File(new URI(gitRepoUrl)));
         List<String> messages = new ArrayList<>();
         Iterable<RevCommit> commits = git.log().call();
         for (RevCommit commit : commits) {
