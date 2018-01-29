@@ -41,23 +41,19 @@ public class S3SrcsToGitExporter {
 
     private final Git git;
 
-    public S3SrcsToGitExporter(S3Object s3Object, Git git) {
+    S3SrcsToGitExporter(S3Object s3Object, Git git) {
         this.s3Object = s3Object;
         this.git = git;
     }
 
-    public void export() throws GitAPIException, IOException, Exception {
+    public void export() throws Exception {
         Path inputFile = downloadObject();
         Path outputDir = getGitPath();
         ToGitConverter converter = new ToGitConverter(inputFile, outputDir);
         converter.convert();
     }
 
-    public void pushRemote() throws GitAPIException {
-        git.push().call();
-    }
-
-    public Path downloadObject() throws IOException {
+    private Path downloadObject() throws IOException {
         File file = File.createTempFile("code_", ".srcs");
         InputStream source = s3Object.getObjectContent();
         FileUtils.copyInputStreamToFile(source, file);
@@ -82,7 +78,7 @@ public class S3SrcsToGitExporter {
         return builder.build();
     }
 
-    public Path getGitPath() {
+    private Path getGitPath() {
         return git.getRepository()
                 .getDirectory()
                 .toPath();

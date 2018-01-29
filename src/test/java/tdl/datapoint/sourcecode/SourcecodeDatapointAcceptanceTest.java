@@ -48,11 +48,11 @@ public class SourcecodeDatapointAcceptanceTest {
         context = mock(Context.class);
         when(context.getLogger()).thenReturn(System.out::println);
 
-        environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_USERNAME, GITHUB_USERNAME);
-        environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_TOKEN, GITHUB_TOKEN);
-        environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_HOST, GITHUB_HOST);
-        environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_PORT, GITHUB_PORT);
-        environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_PROTOCOL, GITHUB_PROTOCOL);
+        environmentVariables.set(RemoteGithub.ENV_GITHUB_USERNAME, GITHUB_USERNAME);
+        environmentVariables.set(RemoteGithub.ENV_GITHUB_TOKEN, GITHUB_TOKEN);
+        environmentVariables.set(RemoteGithub.ENV_GITHUB_HOST, GITHUB_HOST);
+        environmentVariables.set(RemoteGithub.ENV_GITHUB_PORT, GITHUB_PORT);
+        environmentVariables.set(RemoteGithub.ENV_GITHUB_PROTOCOL, GITHUB_PROTOCOL);
 
         environmentVariables.set(SQSMessageQueue.ENV_SQS_ENDPOINT, LocalSQSQueue.ELASTIC_MQ_URL);
         environmentVariables.set(SQSMessageQueue.ENV_SQS_REGION, LocalSQSQueue.ELASTIC_MQ_REGION);
