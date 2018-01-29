@@ -12,17 +12,17 @@ import java.util.logging.Level;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
-public class Handler implements RequestHandler<Map<String, Object>, Response> {
+public class SourceCodeUploadHandler implements RequestHandler<Map<String, Object>, Response> {
 
     //private static final Logger LOG = Logger.getLogger(Handler.class);
     @Override
-    public Response handleRequest(Map<String, Object> input, Context context) {
+    public Response handleRequest(Map<String, Object> s3EventMap, Context context) {
         try {
-            S3BucketEvent event = new S3BucketEvent(input);
+            S3BucketEvent event = new S3BucketEvent(s3EventMap);
             uploadCommitToRepo(event);
             return new Response("ok");
         } catch (Exception ex) {
-            java.util.logging.Logger.getLogger(Handler.class.getName()).log(Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(SourceCodeUploadHandler.class.getName()).log(Level.SEVERE, null, ex);
             //Debt This path is not covered with tests
             return new Response("error: " + ex.getMessage());
         }

@@ -1,4 +1,4 @@
-package tdl.datapoint.sourcecode;
+package tdl.datapoint.sourcecode.support;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;

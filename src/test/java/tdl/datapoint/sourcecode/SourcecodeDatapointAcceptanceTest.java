@@ -3,33 +3,29 @@ package tdl.datapoint.sourcecode;
 import com.amazonaws.services.s3.AmazonS3;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.revwalk.RevCommit;
-import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
 import org.junit.rules.TemporaryFolder;
-import static org.mockito.Mockito.*;
+import tdl.datapoint.sourcecode.support.LocalS3Bucket;
+import tdl.datapoint.sourcecode.support.LocalSQSQueue;
 import tdl.record.sourcecode.snapshot.file.Header;
 import tdl.record.sourcecode.snapshot.file.Reader;
 import tdl.record.sourcecode.snapshot.file.Segment;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
+
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+
 
 public class SourcecodeDatapointAcceptanceTest {
 
@@ -52,6 +48,7 @@ public class SourcecodeDatapointAcceptanceTest {
     public TemporaryFolder folder = new TemporaryFolder();
 
     private String queueUrl;
+    private SourceCodeUploadHandler sourceCodeUploadHandler;
 
     @Before
     public void setUp() {
@@ -74,109 +71,45 @@ public class SourcecodeDatapointAcceptanceTest {
         queueUrl = LocalSQSQueue.getQueueUrlOrCreate(queueName);
         LocalSQSQueue.purgeQueue(queueName);
         environmentVariables.set(SQSMessageQueue.ENV_SQS_QUEUE_URL, queueUrl);
+
+        sourceCodeUploadHandler = new SourceCodeUploadHandler();
     }
 
-    private S3BucketEvent createS3BucketEvent(String key) {
-        S3BucketEvent event = mock(S3BucketEvent.class);
-        when(event.getBucket())
-                .thenReturn(BUCKET);
-        when(event.getKey())
-                .thenReturn(key);
-        return event;
-    }
-
-    private void uploadSrcs(String srcsPath, String key) {
+    private String uploadSrcsToS3(String srcsPath, String key) {
         AmazonS3 s3Client = LocalS3Bucket.createS3Client();
         Path path = Paths.get(srcsPath);
         createBucketIfNotExists(s3Client, BUCKET);
         s3Client.putObject(BUCKET, key, path.toFile());
-    }
-
-    private Handler createHandler() {
-        Handler handler = new Handler();
-
-        return handler;
+        return "{\"Records\":[{\"s3\":{\"bucket\":{\"name\":\"" + BUCKET + "\"},"
+                + " \"object\":{\"key\":\"" + key + "\"}}}]}";
     }
 
     @Test
     public void create_repo_and_uploads_commits() throws Exception {
-        /*
-         * Setup: - an existing S3 bucket (Minio) - no initial repo - an SQS
-         * Event queue (ElasticMq)
-         */
+        String challengeId = generateId();
+        String participantId = generateId();
 
- /*
-         * Input:
-         *
-         * Generate a new, unique username Upload of a SRCS file to the bucket.
-         * The key will be something like `challenge/username/file.srcs`
-         * Simulate the triggering of the lambda via an S3 event. (the input
-         * should be the KEY of the newly updated file)
-         */
- /*
-         * Notes on the implementation: - the lambda receives an event from S3,
-         * for a key like "challenge/username/file.srcs" - based on the key of
-         * file we construct a Github URL like:
-         * https://github.com/Challenge/username Example:
-         * https://github.com/TST-challenge/username - if the repo does not
-         * exist, we create the new repo - we clone the repo locally and we add
-         * the commits - we push the commits - we push the URL as an event to
-         * the SQS Queue
-         */
         String srcsPath = "src/test/resources/test.srcs";
-        String key = "challenge/test3/file.srcs";
-        uploadSrcs(srcsPath, key);
+        String key = String.format("%s/%s/file.srcs", challengeId, participantId);
+        String s3UploadEventJson = uploadSrcsToS3(srcsPath, key);
 
-        String json = getJsonInput(BUCKET, key);
-        Map<String, Object> input = getLambdaInputFromJson(json);
+        // Invoke the handler as Lambda would
+        sourceCodeUploadHandler.handleRequest(convertToMap(s3UploadEventJson), null);
 
-        Handler handler = new Handler();
-        handler.handleRequest(input, null);
+        String publishedRepoUrl = LocalSQSQueue.getFirstMessageBody(queueUrl);
+        assertThat(publishedRepoUrl, allOf(startsWith("file:///"),
+//                containsString(challengeId),
+                endsWith(participantId)));
+        assertThat(getCommitMessagesFromGit(publishedRepoUrl),
+                equalTo(getCommitMessagesFromSrcs(Paths.get(srcsPath))));
 
-        /*
-         * Output (the assertions):
-         *
-         * An event should be publish with a REPO url on the SQS Event Queue.
-         * (check ElasticMq) We clone the REPO, it should contain the actual
-         * commits
-         */
-        String actual = LocalSQSQueue.getFirstMessageBody(queueUrl);
-        assertTrue(actual.startsWith("file:///"));
-        //Debt Assert on the entire Github link
-        assertTrue(actual.endsWith("test3"));
 
-        Git git = Git.open(new File(new URI(actual)));
-        assertEquals(6, getCommitCount(git));
-        List<String> expectedMessages = getCommitMessagesFromSrcs(Paths.get(srcsPath));
-        List<String> actualMessages = getCommitMessagesFromGit(git);
-        assertEquals(expectedMessages, actualMessages);
     }
 
-    @Test
-    public void push_commits_to_existing_repo() throws Exception {
-        /*
-         * Same as the previous test, the only difference is that the target
-         * repo already exists: https://github.com/Challenge/username
-         */
-        String srcsPath = "src/test/resources/test.srcs";
-        String key = "challenge/test4/file.srcs";
-        uploadSrcs(srcsPath, key);
+    //~~~~~~~~~~ Helpers ~~~~~~~~~~~~~`
 
-        String json = getJsonInput(BUCKET, key);
-        Map<String, Object> input = getLambdaInputFromJson(json);
-
-        Handler handler = new Handler();
-        handler.handleRequest(input, null);
-
-        String actual = LocalSQSQueue.getFirstMessageBody(queueUrl);
-        assertTrue(actual.startsWith("file:///"));
-        assertTrue(actual.endsWith("test4"));
-
-        Git git = Git.open(new File(new URI(actual)));
-        assertEquals(6, getCommitCount(git)); //appended
-        List<String> expectedMessages = getCommitMessagesFromSrcs(Paths.get(srcsPath));
-        List<String> actualMessages = getCommitMessagesFromGit(git);
-        assertEquals(expectedMessages, actualMessages);
+    private static String generateId() {
+        return UUID.randomUUID().toString().replaceAll("-","");
     }
 
     @SuppressWarnings("deprecation")
@@ -184,17 +117,6 @@ public class SourcecodeDatapointAcceptanceTest {
         if (!client.doesBucketExist(bucket)) {
             client.createBucket(bucket);
         }
-    }
-
-    private static int getCommitCount(Git git) throws GitAPIException {
-        Iterable<RevCommit> commits = git.log().call();
-        int count = 0;
-        Iterator it = commits.iterator();
-        while (it.hasNext()) {
-            it.next();
-            count++;
-        }
-        return count;
     }
 
     private static List<String> getCommitMessagesFromSrcs(Path path) throws IOException {
@@ -210,7 +132,8 @@ public class SourcecodeDatapointAcceptanceTest {
         return messages;
     }
 
-    private static List<String> getCommitMessagesFromGit(Git git) throws GitAPIException {
+    private static List<String> getCommitMessagesFromGit(String actual) throws Exception {
+        Git git = Git.open(new File(new URI(actual)));
         List<String> messages = new ArrayList<>();
         Iterable<RevCommit> commits = git.log().call();
         Iterator<RevCommit> it = commits.iterator();
@@ -222,12 +145,7 @@ public class SourcecodeDatapointAcceptanceTest {
         return messages;
     }
 
-    private static String getJsonInput(String bucket, String key) {
-        return "{\"Records\":[{\"s3\":{\"bucket\":{\"name\":\"" + bucket + "\"},"
-                + " \"object\":{\"key\":\"" + key + "\"}}}]}";
-    }
-
-    private static Map<String, Object> getLambdaInputFromJson(String json) throws IOException {
+    private static Map<String, Object> convertToMap(String json) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         Map<String, Object> map = mapper.readValue(json, new TypeReference<Map<String, Object>>() {
         });

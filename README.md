@@ -15,8 +15,8 @@ serverless deploy
 
 Start external dependencies
 ```bash
-python local-sqs/fetch-elasticmq-and-run.py start
-python local-github/local-github-run.py start
+python local-sqs/elasticmq-wrapper.py start
+python local-github/github-server-wrapper.py start
 python local-s3/minio-wrapper.py start
 ```
 
