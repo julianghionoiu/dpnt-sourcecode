@@ -15,5 +15,4 @@ out
 node_modules
 
 tmp
-minio
 elasticmq-server.jar

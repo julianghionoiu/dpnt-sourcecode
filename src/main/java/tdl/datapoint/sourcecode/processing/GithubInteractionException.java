@@ -1,4 +1,4 @@
-package tdl.datapoint.sourcecode;
+package tdl.datapoint.sourcecode.processing;
 
 public class GithubInteractionException extends Exception {
 

@@ -1,4 +1,4 @@
-package tdl.datapoint.sourcecode;
+package tdl.datapoint.sourcecode.processing;
 
 import org.eclipse.egit.github.core.Repository;
 import org.eclipse.egit.github.core.User;
@@ -8,19 +8,11 @@ import org.eclipse.egit.github.core.service.RepositoryService;
 import java.io.IOException;
 
 public class RemoteGithub {
-
-    public static final String ENV_GITHUB_REPO_OWNER = "GITHUB_USERNAME";
-    public static final String ENV_GITHUB_HOST = "GITHUB_HOST";
-    public static final String ENV_GITHUB_PORT = "GITHUB_PORT";
-    public static final String ENV_GITHUB_PROTOCOL = "GITHUB_PROTOCOL";
-    public static final String ENV_GITHUB_AUTH_TOKEN = "GITHUB_TOKEN";
-
     private final String repoOwner;
-
     private final RepositoryService service;
 
-    RemoteGithub(String host, int port, String protocol, String authToken,
-                 String repoOwner) {
+    public RemoteGithub(String host, int port, String protocol, String authToken,
+                        String repoOwner) {
         GitHubClient client = new GitHubClient(host, port, protocol);
         client.setOAuth2Token(authToken);
 

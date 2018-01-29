@@ -1,4 +1,4 @@
-package tdl.datapoint.sourcecode;
+package tdl.datapoint.sourcecode.processing;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -11,7 +11,7 @@ import java.nio.file.Path;
 public class LocalGitClient {
     private final UsernamePasswordCredentialsProvider credentialsProvider;
 
-    LocalGitClient(String authToken) {
+    public LocalGitClient(String authToken) {
         credentialsProvider =
                 new UsernamePasswordCredentialsProvider(authToken, "");
     }

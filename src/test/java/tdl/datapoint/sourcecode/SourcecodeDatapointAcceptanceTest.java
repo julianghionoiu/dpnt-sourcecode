@@ -10,6 +10,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
 import org.junit.rules.TemporaryFolder;
+import tdl.datapoint.sourcecode.support.LocalGithub;
 import tdl.datapoint.sourcecode.support.LocalS3Bucket;
 import tdl.datapoint.sourcecode.support.LocalSQSQueue;
 import tdl.datapoint.sourcecode.support.TestSrcsFile;
@@ -21,17 +22,10 @@ import java.util.*;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 
 public class SourcecodeDatapointAcceptanceTest {
-
-    private static final String GITHUB_USERNAME = "dpnttest";
-    private static final String GITHUB_TOKEN = "test";
-    private static final String GITHUB_HOST = "localhost";
-    private static final String GITHUB_PORT = "9556";
-    private static final String GITHUB_PROTOCOL = "http";
+    private static final Context NO_CONTEXT = null;
 
     @Rule
     public EnvironmentVariables environmentVariables = new EnvironmentVariables();
@@ -39,35 +33,27 @@ public class SourcecodeDatapointAcceptanceTest {
     @Rule
     public TemporaryFolder folder = new TemporaryFolder();
 
-    private String queueUrl;
-    private Context context;
     private SourceCodeUploadHandler sourceCodeUploadHandler;
+    private LocalSQSQueue localSQSQueue;
 
     @Before
     public void setUp() {
-        context = mock(Context.class);
-        when(context.getLogger()).thenReturn(System.out::println);
+        environmentVariables.set(ApplicationEnv.GITHUB_REPO_OWNER, LocalGithub.GITHUB_REPO_OWNER);
+        environmentVariables.set(ApplicationEnv.GITHUB_AUTH_TOKEN, LocalGithub.GITHUB_TOKEN);
+        environmentVariables.set(ApplicationEnv.GITHUB_HOST, LocalGithub.GITHUB_HOST);
+        environmentVariables.set(ApplicationEnv.GITHUB_PORT, LocalGithub.GITHUB_PORT);
+        environmentVariables.set(ApplicationEnv.GITHUB_PROTOCOL, LocalGithub.GITHUB_PROTOCOL);
 
-        environmentVariables.set(RemoteGithub.ENV_GITHUB_REPO_OWNER, GITHUB_USERNAME);
-        environmentVariables.set(RemoteGithub.ENV_GITHUB_AUTH_TOKEN, GITHUB_TOKEN);
-        environmentVariables.set(RemoteGithub.ENV_GITHUB_HOST, GITHUB_HOST);
-        environmentVariables.set(RemoteGithub.ENV_GITHUB_PORT, GITHUB_PORT);
-        environmentVariables.set(RemoteGithub.ENV_GITHUB_PROTOCOL, GITHUB_PROTOCOL);
+        environmentVariables.set(ApplicationEnv.SQS_ENDPOINT, LocalSQSQueue.ELASTIC_MQ_URL);
+        environmentVariables.set(ApplicationEnv.SQS_REGION, LocalSQSQueue.ELASTIC_MQ_REGION);
+        environmentVariables.set(ApplicationEnv.SQS_QUEUE_URL, LocalSQSQueue.ELASTIC_MQ_SQS_QUEUE_URL);
 
-        environmentVariables.set(SQSMessageQueue.ENV_SQS_ENDPOINT, LocalSQSQueue.ELASTIC_MQ_URL);
-        environmentVariables.set(SQSMessageQueue.ENV_SQS_REGION, LocalSQSQueue.ELASTIC_MQ_REGION);
+        environmentVariables.set(ApplicationEnv.S3_ENDPOINT, LocalS3Bucket.MINIO_URL);
+        environmentVariables.set(ApplicationEnv.S3_REGION, LocalS3Bucket.MINIO_REGION);
+        environmentVariables.set(ApplicationEnv.S3_ACCESS_KEY, LocalS3Bucket.MINIO_ACCESS_KEY);
+        environmentVariables.set(ApplicationEnv.S3_SECRET_KEY, LocalS3Bucket.MINIO_SECRET_KEY);
 
-        environmentVariables.set(S3SrcsToGitExporter.ENV_S3_ENDPOINT, LocalS3Bucket.MINIO_URL);
-        environmentVariables.set(S3SrcsToGitExporter.ENV_S3_REGION, LocalS3Bucket.MINIO_REGION);
-        environmentVariables.set(S3SrcsToGitExporter.ENV_S3_ACCESS_KEY, LocalS3Bucket.MINIO_ACCESS_KEY);
-        environmentVariables.set(S3SrcsToGitExporter.ENV_S3_SECRET_KEY, LocalS3Bucket.MINIO_SECRET_KEY);
-
-        //TODO replace with queue client
-        String queueName = "queue2";
-        queueUrl = LocalSQSQueue.getQueueUrlOrCreate(queueName);
-        LocalSQSQueue.purgeQueue(queueName);
-        environmentVariables.set(SQSMessageQueue.ENV_SQS_QUEUE_URL, queueUrl);
-
+        localSQSQueue = LocalSQSQueue.createInstance();
         sourceCodeUploadHandler = new SourceCodeUploadHandler();
     }
 
@@ -86,10 +72,10 @@ public class SourcecodeDatapointAcceptanceTest {
         // When - Upload event happens
         sourceCodeUploadHandler.handleRequest(
                 convertToMap(LocalS3Bucket.putObject(srcs1.asFile(), s3destination)),
-                context);
+                NO_CONTEXT);
 
         // Then - Repo is created with the contents of the SRCS file
-        String repoUrl1 = LocalSQSQueue.getFirstMessageBody(queueUrl);
+        String repoUrl1 = localSQSQueue.getFirstMessageBody();
         assertThat(repoUrl1, allOf(startsWith("file:///"),
         //Obs might need to add the ChallengeID: containsString(challengeId),
                 endsWith(participantId)));
@@ -98,10 +84,10 @@ public class SourcecodeDatapointAcceptanceTest {
         // When - Another upload event happens
         sourceCodeUploadHandler.handleRequest(
                 convertToMap(LocalS3Bucket.putObject(srcs2.asFile(), s3destination)),
-                context);
+                NO_CONTEXT);
 
         // Then - The SRCS file is appended to the repo
-        String repoUrl2 = LocalSQSQueue.getFirstMessageBody(queueUrl);
+        String repoUrl2 = localSQSQueue.getFirstMessageBody();
         assertThat(repoUrl1, equalTo(repoUrl2));
         assertThat(getCommitMessagesFromGit(repoUrl2), equalTo(combinedSrcsMessages));
     }
