@@ -1,5 +1,6 @@
 package tdl.datapoint.sourcecode;
 
+import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.s3.AmazonS3;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,6 +42,8 @@ public class SourcecodeDatapointAcceptanceTest {
 
     private static final String GITHUB_PROTOCOL = "http";
 
+    private static final Context NO_CONTEXT = null;
+
     @Rule
     public EnvironmentVariables environmentVariables = new EnvironmentVariables();
 
@@ -66,7 +69,7 @@ public class SourcecodeDatapointAcceptanceTest {
         environmentVariables.set(S3SrcsToGitExporter.ENV_S3_ACCESS_KEY, LocalS3Bucket.MINIO_ACCESS_KEY);
         environmentVariables.set(S3SrcsToGitExporter.ENV_S3_SECRET_KEY, LocalS3Bucket.MINIO_SECRET_KEY);
 
-        //
+        //TODO replace with queue client
         String queueName = "queue2";
         queueUrl = LocalSQSQueue.getQueueUrlOrCreate(queueName);
         LocalSQSQueue.purgeQueue(queueName);
@@ -75,35 +78,72 @@ public class SourcecodeDatapointAcceptanceTest {
         sourceCodeUploadHandler = new SourceCodeUploadHandler();
     }
 
-    private String uploadSrcsToS3(String srcsPath, String key) {
+    private String uploadSrcsToS3(File srcsFile, String key) {
         AmazonS3 s3Client = LocalS3Bucket.createS3Client();
-        Path path = Paths.get(srcsPath);
         createBucketIfNotExists(s3Client, BUCKET);
-        s3Client.putObject(BUCKET, key, path.toFile());
+        s3Client.putObject(BUCKET, key, srcsFile);
         return "{\"Records\":[{\"s3\":{\"bucket\":{\"name\":\"" + BUCKET + "\"},"
                 + " \"object\":{\"key\":\"" + key + "\"}}}]}";
     }
 
+    static class TestSrcsFile {
+        Path resourcePath;
+
+        TestSrcsFile(String name) {
+            resourcePath = Paths.get("src/test/resources/", name);
+        }
+
+        File asFile() {
+            return resourcePath.toFile();
+        }
+
+        List<String> getCommitMessages() throws IOException {
+            Reader reader = new Reader(asFile());
+            List<String> messages = new ArrayList<>();
+            while (reader.hasNext()) {
+                Header header = reader.getFileHeader();
+                Segment segment = reader.nextSegment();
+                Date timestamp = new Date((header.getTimestamp() + segment.getTimestampSec()) * 1000L);
+                String message = timestamp.toString();
+                messages.add(message);
+            }
+            return messages;
+        }
+    }
+
     @Test
     public void create_repo_and_uploads_commits() throws Exception {
+        // Given - The participant produces SRCS files while solving a challenge
         String challengeId = generateId();
         String participantId = generateId();
+        String s3destination = String.format("%s/%s/file.srcs", challengeId, participantId);
+        TestSrcsFile srcs1 = new TestSrcsFile("test.srcs");
+        TestSrcsFile srcs2 = new TestSrcsFile("test.srcs");
+        List<String> combinedSrcsMessages = new ArrayList<>();
+        combinedSrcsMessages.addAll(srcs1.getCommitMessages());
+        combinedSrcsMessages.addAll(srcs2.getCommitMessages());
 
-        String srcsPath = "src/test/resources/test.srcs";
-        String key = String.format("%s/%s/file.srcs", challengeId, participantId);
-        String s3UploadEventJson = uploadSrcsToS3(srcsPath, key);
+        // When - Upload event happens
+        sourceCodeUploadHandler.handleRequest(
+                convertToMap(uploadSrcsToS3(srcs1.asFile(), s3destination)),
+                NO_CONTEXT);
 
-        // Invoke the handler as Lambda would
-        sourceCodeUploadHandler.handleRequest(convertToMap(s3UploadEventJson), null);
-
-        String publishedRepoUrl = LocalSQSQueue.getFirstMessageBody(queueUrl);
-        assertThat(publishedRepoUrl, allOf(startsWith("file:///"),
+        // Then - Repo is created with the contents of the SRCS file
+        String repoUrl1 = LocalSQSQueue.getFirstMessageBody(queueUrl);
+        assertThat(repoUrl1, allOf(startsWith("file:///"),
 //                containsString(challengeId),
                 endsWith(participantId)));
-        assertThat(getCommitMessagesFromGit(publishedRepoUrl),
-                equalTo(getCommitMessagesFromSrcs(Paths.get(srcsPath))));
+        assertThat(getCommitMessagesFromGit(repoUrl1), equalTo(srcs1.getCommitMessages()));
 
+        // When - Another upload event happens
+        sourceCodeUploadHandler.handleRequest(
+                convertToMap(uploadSrcsToS3(srcs2.asFile(), s3destination)),
+                NO_CONTEXT);
 
+        // Then - The SRCS file is appended to the repo
+        String repoUrl2 = LocalSQSQueue.getFirstMessageBody(queueUrl);
+        assertThat(repoUrl1, equalTo(repoUrl2));
+        assertThat(getCommitMessagesFromGit(repoUrl2), equalTo(combinedSrcsMessages));
     }
 
     //~~~~~~~~~~ Helpers ~~~~~~~~~~~~~`
@@ -119,26 +159,11 @@ public class SourcecodeDatapointAcceptanceTest {
         }
     }
 
-    private static List<String> getCommitMessagesFromSrcs(Path path) throws IOException {
-        Reader reader = new Reader(path.toFile());
-        List<String> messages = new ArrayList<>();
-        while (reader.hasNext()) {
-            Header header = reader.getFileHeader();
-            Segment segment = reader.nextSegment();
-            Date timestamp = new Date((header.getTimestamp() + segment.getTimestampSec()) * 1000L);
-            String message = timestamp.toString();
-            messages.add(message);
-        }
-        return messages;
-    }
-
     private static List<String> getCommitMessagesFromGit(String actual) throws Exception {
         Git git = Git.open(new File(new URI(actual)));
         List<String> messages = new ArrayList<>();
         Iterable<RevCommit> commits = git.log().call();
-        Iterator<RevCommit> it = commits.iterator();
-        while (it.hasNext()) {
-            RevCommit commit = it.next();
+        for (RevCommit commit : commits) {
             messages.add(commit.getFullMessage());
         }
         Collections.reverse(messages);
@@ -147,8 +172,6 @@ public class SourcecodeDatapointAcceptanceTest {
 
     private static Map<String, Object> convertToMap(String json) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        Map<String, Object> map = mapper.readValue(json, new TypeReference<Map<String, Object>>() {
-        });
-        return map;
+        return mapper.readValue(json, new TypeReference<Map<String, Object>>() {});
     }
 }
