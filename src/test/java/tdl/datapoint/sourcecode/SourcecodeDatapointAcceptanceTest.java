@@ -21,6 +21,8 @@ import java.util.*;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 
 public class SourcecodeDatapointAcceptanceTest {
@@ -31,8 +33,6 @@ public class SourcecodeDatapointAcceptanceTest {
     private static final String GITHUB_PORT = "9556";
     private static final String GITHUB_PROTOCOL = "http";
 
-    private static final Context NO_CONTEXT = null;
-
     @Rule
     public EnvironmentVariables environmentVariables = new EnvironmentVariables();
 
@@ -40,10 +40,14 @@ public class SourcecodeDatapointAcceptanceTest {
     public TemporaryFolder folder = new TemporaryFolder();
 
     private String queueUrl;
+    private Context context;
     private SourceCodeUploadHandler sourceCodeUploadHandler;
 
     @Before
     public void setUp() {
+        context = mock(Context.class);
+        when(context.getLogger()).thenReturn(System.out::println);
+
         environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_USERNAME, GITHUB_USERNAME);
         environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_TOKEN, GITHUB_TOKEN);
         environmentVariables.set(SrcsGithubRepo.ENV_GITHUB_HOST, GITHUB_HOST);
@@ -82,7 +86,7 @@ public class SourcecodeDatapointAcceptanceTest {
         // When - Upload event happens
         sourceCodeUploadHandler.handleRequest(
                 convertToMap(LocalS3Bucket.putObject(srcs1.asFile(), s3destination)),
-                NO_CONTEXT);
+                context);
 
         // Then - Repo is created with the contents of the SRCS file
         String repoUrl1 = LocalSQSQueue.getFirstMessageBody(queueUrl);
@@ -94,7 +98,7 @@ public class SourcecodeDatapointAcceptanceTest {
         // When - Another upload event happens
         sourceCodeUploadHandler.handleRequest(
                 convertToMap(LocalS3Bucket.putObject(srcs2.asFile(), s3destination)),
-                NO_CONTEXT);
+                context);
 
         // Then - The SRCS file is appended to the repo
         String repoUrl2 = LocalSQSQueue.getFirstMessageBody(queueUrl);

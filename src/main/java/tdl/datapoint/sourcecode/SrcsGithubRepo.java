@@ -21,22 +21,12 @@ public class SrcsGithubRepo {
 
     private final String username;
 
-    private final GitHubClient client;
-
     private final RepositoryService service;
 
     private Repository repository;
 
-    public SrcsGithubRepo(String repoName) {
+    SrcsGithubRepo(String repoName, GitHubClient client) {
         this.repoName = repoName;
-        this.client = createGithubClient();
-        this.username = getUsername();
-        this.service = new RepositoryService(client);
-    }
-
-    public SrcsGithubRepo(String repoName, GitHubClient client) {
-        this.repoName = repoName;
-        this.client = client;
         this.username = getUsername();
         this.service = new RepositoryService(client);
     }
@@ -49,7 +39,7 @@ public class SrcsGithubRepo {
         }
     }
 
-    public boolean doesGithubRepoExist() {
+    private boolean doesGithubRepoExist() {
         try {
             repository = service.getRepository(username, repoName);
             return repository.getId() > 0;
@@ -58,7 +48,7 @@ public class SrcsGithubRepo {
         }
     }
 
-    public void createNewRepository() throws IOException, RequestException {
+    private void createNewRepository() throws IOException {
         Repository newRepo = new Repository();
         newRepo.setName(getRepoName());
         User owner = new User();
@@ -69,15 +59,11 @@ public class SrcsGithubRepo {
         doesGithubRepoExist();
     }
 
-    public String getRepoName() {
+    private String getRepoName() {
         return repoName;
     }
 
-    public Repository getRepository() {
-        return repository;
-    }
-
-    public static String getUsername() {
+    private static String getUsername() {
         return System.getenv(ENV_GITHUB_USERNAME);
     }
 
@@ -99,7 +85,7 @@ public class SrcsGithubRepo {
         return new UsernamePasswordCredentialsProvider(getToken(), "");
     }
 
-    public static String getToken() {
+    private static String getToken() {
         return System.getenv(ENV_GITHUB_TOKEN);
     }
 

@@ -11,42 +11,52 @@ import java.nio.file.Path;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.egit.github.core.client.GitHubClient;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
 public class SourceCodeUploadHandler implements RequestHandler<Map<String, Object>, String> {
     private static final Logger LOG = Logger.getLogger(SourceCodeUploadHandler.class.getName());
+    private AmazonS3 s3Client;
 
+    SourceCodeUploadHandler() {
+        s3Client = createDefaultS3Client();
+
+        // S3
+        // Github repo
+        // SQS queue
+    }
 
     @Override
     public String handleRequest(Map<String, Object> s3EventMap, Context context) {
         try {
-            S3BucketEvent event = new S3BucketEvent(s3EventMap);
+            S3BucketEvent event = S3BucketEvent.from(s3EventMap);
+
             uploadCommitToRepo(event);
             return "OK";
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, ex.getMessage(), ex);
-            //Debt This path is not covered with tests
-            return "ERROR: " + ex.getMessage();
+            throw new RuntimeException(ex);
         }
     }
 
     //Debt should be private and we should construct the Map as AWS does
     private void uploadCommitToRepo(S3BucketEvent event) throws Exception {
-        SrcsGithubRepo repo = createRepository(event.getKey());
-        S3Object s3Object = getS3Object(event);
-        Git git = getGitRepo(repo);
+        S3Object s3Object = s3Client.getObject(event.getBucket(), event.getKey());
+
+        String repoName = SrcsGithubRepo.parseS3KeyToRepositoryName(event.getKey());
+
+        GitHubClient githubClient = SrcsGithubRepo.createGithubClient();
+        SrcsGithubRepo repo1 = new SrcsGithubRepo(repoName, githubClient);
+        repo1.createNewRepositoryIfNotExists();
+        Git git = getGitRepo(repo1);
+
         S3SrcsToGitExporter exporter = new S3SrcsToGitExporter(s3Object, git);
         exporter.export();
-        pushRemote(git);
-        sendGithubUrlToQueue(repo.getUri());
-    }
 
-    private SrcsGithubRepo createRepository(String s3Key) throws Exception {
-        String repoName = SrcsGithubRepo.parseS3KeyToRepositoryName(s3Key);
-        SrcsGithubRepo repo = new SrcsGithubRepo(repoName);
-        repo.createNewRepositoryIfNotExists();
-        return repo;
+        pushRemote(git);
+
+        sendGithubUrlToQueue(repo1.getUri());
     }
 
     private void sendGithubUrlToQueue(String url) {
@@ -67,11 +77,6 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
                 .setCredentialsProvider(SrcsGithubRepo.getCredentialsProvider())
                 .setDirectory(directory.toFile())
                 .call();
-    }
-
-    private S3Object getS3Object(S3BucketEvent event) {
-        AmazonS3 s3Client = createDefaultS3Client();
-        return s3Client.getObject(event.getBucket(), event.getKey());
     }
 
     private AmazonS3 createDefaultS3Client() {
