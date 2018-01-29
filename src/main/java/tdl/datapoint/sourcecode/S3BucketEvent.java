@@ -30,4 +30,11 @@ public class S3BucketEvent {
         return key;
     }
 
+    public String getChallengeId() {
+        return key.split("/")[0];
+    }
+
+    public String getParticipantId() {
+        return key.split("/")[1];
+    }
 }

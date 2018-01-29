@@ -1,37 +1,48 @@
 package tdl.datapoint.sourcecode;
 
-import java.util.Map;
-
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.S3Object;
+import org.eclipse.egit.github.core.Repository;
+import org.eclipse.jgit.api.Git;
 
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import org.eclipse.egit.github.core.Repository;
-import org.eclipse.egit.github.core.client.GitHubClient;
-import org.eclipse.jgit.api.Git;
 
 public class SourceCodeUploadHandler implements RequestHandler<Map<String, Object>, String> {
     private static final Logger LOG = Logger.getLogger(SourceCodeUploadHandler.class.getName());
     private AmazonS3 s3Client;
+    private RemoteGithub remoteGithubClient;
+    private LocalGitClient localGitClient;
+    private SQSMessageQueue queue;
+    private S3SrcsToGitExporter srcsToGitExporter;
 
     SourceCodeUploadHandler() {
         s3Client = S3SrcsToGitExporter.createDefaultS3Client();
 
-        // S3
-        // Github repo
-        // SQS queue
+        String githubHost = System.getenv(RemoteGithub.ENV_GITHUB_HOST);
+        int githubPort = Integer.parseInt(System.getenv(RemoteGithub.ENV_GITHUB_PORT));
+        String githubProtocol = System.getenv(RemoteGithub.ENV_GITHUB_PROTOCOL);
+        String githubAuthToken = System.getenv(RemoteGithub.ENV_GITHUB_AUTH_TOKEN);
+        String githubRepoOwner = System.getenv(RemoteGithub.ENV_GITHUB_REPO_OWNER);
+
+        remoteGithubClient = new RemoteGithub(
+                githubHost, githubPort, githubProtocol, githubAuthToken,
+                githubRepoOwner);
+
+        localGitClient = new LocalGitClient(githubAuthToken);
+
+        srcsToGitExporter = new S3SrcsToGitExporter();
+
+        queue = new SQSMessageQueue();
     }
 
     @Override
     public String handleRequest(Map<String, Object> s3EventMap, Context context) {
         try {
-            S3BucketEvent event = S3BucketEvent.from(s3EventMap);
-
-            uploadCommitToRepo(event);
+            handleS3Event(S3BucketEvent.from(s3EventMap));
             return "OK";
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, ex.getMessage(), ex);
@@ -39,33 +50,16 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
         }
     }
 
-    //Debt should be private and we should construct the Map as AWS does
-    private void uploadCommitToRepo(S3BucketEvent event) throws Exception {
-        S3Object s3Object = s3Client.getObject(event.getBucket(), event.getKey());
-
-        String repoName = RemoteGithub.parseS3KeyToRepositoryName(event.getKey());
-
-        GitHubClient githubClient = RemoteGithub.createGithubClient();
-        RemoteGithub githubApi = new RemoteGithub(
-                System.getenv(RemoteGithub.ENV_GITHUB_USERNAME), githubClient);
-
-
-        LocalGitClient localGitClient = new LocalGitClient(System.getenv(RemoteGithub.ENV_GITHUB_TOKEN));
-        Repository remoteRepo = githubApi.createNewRepositoryIfNotExists(repoName);
-
+    private void handleS3Event(S3BucketEvent event) throws Exception {
+        Repository remoteRepo = remoteGithubClient.createNewRepositoryIfNotExists(
+                event.getChallengeId(), event.getParticipantId());
         Git localRepo = localGitClient.cloneToTemp(remoteRepo.getCloneUrl());
 
-        S3SrcsToGitExporter exporter = new S3SrcsToGitExporter(s3Object, localRepo);
-        exporter.export();
-
+        S3Object remoteSRCSFile = s3Client.getObject(event.getBucket(), event.getKey());
+        srcsToGitExporter.export(remoteSRCSFile, localRepo);
         localGitClient.pushToRemote(localRepo);
 
-        sendGithubUrlToQueue(githubApi.getUri());
-    }
-
-    private void sendGithubUrlToQueue(String url) {
-        SQSMessageQueue queue = new SQSMessageQueue();
-        queue.send(url);
+        queue.send(remoteRepo.getCloneUrl());
     }
 
 }

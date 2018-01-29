@@ -17,7 +17,7 @@ public class LocalGitClient {
     }
 
     public Git cloneToTemp(String cloneUrl) throws IOException, GitAPIException {
-        Path directory = Files.createTempDirectory("tmp");
+        Path directory = Files.createTempDirectory("srcs_repo_");
         return Git.cloneRepository()
                 .setURI(cloneUrl)
                 .setCredentialsProvider(credentialsProvider)
