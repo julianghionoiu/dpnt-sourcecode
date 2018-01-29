@@ -9,22 +9,25 @@ import com.amazonaws.services.s3.model.S3Object;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
-public class SourceCodeUploadHandler implements RequestHandler<Map<String, Object>, Response> {
+public class SourceCodeUploadHandler implements RequestHandler<Map<String, Object>, String> {
+    private static final Logger LOG = Logger.getLogger(SourceCodeUploadHandler.class.getName());
 
-    //private static final Logger LOG = Logger.getLogger(Handler.class);
+
     @Override
-    public Response handleRequest(Map<String, Object> s3EventMap, Context context) {
+    public String handleRequest(Map<String, Object> s3EventMap, Context context) {
         try {
             S3BucketEvent event = new S3BucketEvent(s3EventMap);
             uploadCommitToRepo(event);
-            return new Response("ok");
+            return "OK";
         } catch (Exception ex) {
-            java.util.logging.Logger.getLogger(SourceCodeUploadHandler.class.getName()).log(Level.SEVERE, null, ex);
+            LOG.log(Level.SEVERE, ex.getMessage(), ex);
             //Debt This path is not covered with tests
-            return new Response("error: " + ex.getMessage());
+            return "ERROR: " + ex.getMessage();
         }
     }
 
