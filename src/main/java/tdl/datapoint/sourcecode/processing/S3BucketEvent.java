@@ -15,11 +15,27 @@ public class S3BucketEvent {
 
     @SuppressWarnings("unchecked")
     public static S3BucketEvent from(Map<String, Object> request) {
-        Map<String, Object> record = ((List<Map<String, Object>>) request.get("Records")).get(0);
-        Map<String, Object> s3 = (Map<String, Object>) record.get("s3");
-        String  bucket = (String) ((Map<String, Object>) s3.get("bucket")).get("name");
-        String key = (String) ((Map<String, Object>) s3.get("object")).get("key");
+        if (request == null) {
+            throw new IllegalArgumentException("No input provided");
+        }
+
+        Map<String, Object> record = ((List<Map<String, Object>>) mapGet(request, "Records")).get(0);
+        Map<String, Object> s3 = (Map<String, Object>) mapGet(record, "s3");
+        String  bucket = (String) mapGet((Map<String, Object>) s3.get("bucket"), "name");
+        String key = (String) mapGet((Map<String, Object>) s3.get("object"), "key");
         return new S3BucketEvent(bucket, key);
+    }
+
+    private static Object mapGet(Map<String, Object> map, String key) {
+        if (map == null) {
+            throw new IllegalArgumentException("No input provided. Map is \"null\".");
+        }
+
+        Object o = map.get(key);
+        if (o == null) {
+            throw new IllegalArgumentException(String.format("Key \"%s\" not found in map.", key));
+        }
+        return o;
     }
 
     public String getBucket() {
@@ -36,5 +52,13 @@ public class S3BucketEvent {
 
     public String getParticipantId() {
         return key.split("/")[1];
+    }
+
+    @Override
+    public String toString() {
+        return "S3BucketEvent{" +
+                "bucket='" + bucket + '\'' +
+                ", key='" + key + '\'' +
+                '}';
     }
 }

@@ -21,8 +21,10 @@ public class LocalS3Bucket {
         AmazonS3 s3Client = LocalS3Bucket.createS3Client();
         createBucketIfNotExists(s3Client, BUCKET);
         s3Client.putObject(BUCKET, key, object);
-        return "{\"Records\":[{\"s3\":{\"bucket\":{\"name\":\"" + BUCKET + "\"},"
-                + " \"object\":{\"key\":\"" + key + "\"}}}]}";
+        return String.format("{\"Records\":[{\"s3\":" +
+                "{\"bucket\":{\"name\":\"%s\"}, " +
+                "\"object\":{\"key\":\"%s\"}}}" +
+                "]}", BUCKET, key);
     }
 
     @SuppressWarnings("deprecation")

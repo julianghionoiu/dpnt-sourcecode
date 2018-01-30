@@ -32,9 +32,11 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
     private S3SrcsToGitExporter srcsToGitExporter;
 
     private static String getEnv(ApplicationEnv key) {
-        return Optional.ofNullable(System.getenv(key.name()))
-                .orElseThrow(()
-                        -> new RuntimeException("[Startup] Environment variable " + key + " not set"));
+        String env = System.getenv(key.name());
+        if (env == null || env.trim().isEmpty() || "null".equals(env)) {
+            throw new RuntimeException("[Startup] Environment variable " + key + " not set");
+        }
+        return env;
     }
 
     @SuppressWarnings("WeakerAccess")
@@ -56,7 +58,6 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
                 getEnv(GITHUB_AUTH_TOKEN));
 
         srcsToGitExporter = new S3SrcsToGitExporter();
-
 
         AmazonSQS client = createSQSClient(
                 getEnv(SQS_ENDPOINT),
@@ -99,8 +100,10 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
     }
 
     private void handleS3Event(S3BucketEvent event) throws Exception {
+        LOG.info("Process S3 event with: "+event);
         String participantId = event.getParticipantId();
         String challengeId = event.getChallengeId();
+
         Repository remoteRepo = remoteGithubClient.createNewRepositoryIfNotExists(
                 challengeId, participantId);
         Git localRepo = localGitClient.cloneToTemp(remoteRepo.getCloneUrl());

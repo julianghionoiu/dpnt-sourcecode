@@ -15,9 +15,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 public class LocalSQSQueue {
     public static final String ELASTIC_MQ_URL = "http://localhost:9324";
     public static final String ELASTIC_MQ_REGION = "elasticmq";
-    public static final String ELASTIC_MQ_QUEUE_URL = "http://localhost:9324/queue/participant-events";
     public static final String ELASTIC_MQ_ACCESS_KEY = "x";
     public static final String ELASTIC_MQ_SECRET_KEY = "y";
+    public static final String ELASTIC_MQ_QUEUE_URL = "http://localhost:9324/queue/participant-events";
 
     public static SqsEventQueue createInstance() {
         AmazonSQS client = testAwsClient();

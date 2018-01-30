@@ -1,0 +1,14 @@
+{
+  "Records": [
+    {
+      "s3": {
+        "bucket": {
+          "name": "localbucket"
+        },
+        "object": {
+          "key": "FIZ/file.srcs"
+        }
+      }
+    }
+  ]
+}

@@ -32,7 +32,7 @@ Run the acceptance test
 
 Have a look at `serverless.yml`
 
-Create an environment configuration in `./config` by creating copy after `config.reference.yml.template`
+Create an environment configuration in `./config` by creating copy after `config.local.template`
 
 ## Local testing
 
@@ -43,9 +43,25 @@ Build package
 
 Invoke function manually
 ```
-serverless invoke local --function srcs-github-export
+serverless invoke local --function srcs-github-export --path tdl/dpnt-sourcecode/src/test/resources/tdl/datapoint/sourcecode/sample_s3_event.json
 ```
 
+## Remote deployment
+
+Build package
+```
+./gradlew clean build
+```
+
+Deploy to DEV
+```
+serverless deploy
+```
+
+Deploy to LIVE
+```
+serverless deploy --stage live
+```
 
 ## Clean up
 

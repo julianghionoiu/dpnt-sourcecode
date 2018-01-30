@@ -6,19 +6,14 @@ service: srcs-github-export
 provider:
     name: aws
     runtime: java8
-    stage: ${opt:stage, 'dev'}
+    stage: ${opt:stage, 'local'}
     region: eu-west-2
 
     memorySize: 1536 # in MB
     timeout: 30 # in seconds
     versionFunctions: false
     onError: arn:aws:sns:eu-west-2:577770582757:MyselfEU2 # Ref and Fn::ImportValue are supported as well
-
-    custom: ${file(config.{$self:provider.stage}.yaml)
-    environment:
-#        GITHUB_USERNAME: ${self:custom.GITHUB_USERNAME}
-#        SQS_QUEUE_URL: ${self:custom.SQS_QUEUE_URL}
-#        GITHUB_TOKEN: ${self:custom.GITHUB_TOKEN}
+    environment: ${file(config/env.${self:provider.stage}.yml)}
 
 package:
     artifact: build/libs/dpnt-sourcecode-all.jar
