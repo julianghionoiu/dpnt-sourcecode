@@ -70,7 +70,7 @@ public class SourcecodeDatapointAcceptanceTest {
         // Then - Repo is created with the contents of the SRCS file
         String repoUrl1 = localSQSQueue.getFirstMessageBody();
         assertThat(repoUrl1, allOf(startsWith("file:///"),
-        //Obs might need to add the ChallengeID: containsString(challengeId),
+                containsString(challengeId),
                 endsWith(participantId)));
         assertThat(LocalGithub.getCommitMessages(repoUrl1), equalTo(srcs1.getCommitMessages()));
         assertThat(LocalGithub.getTags(repoUrl1), equalTo(srcs1.getTags()));
