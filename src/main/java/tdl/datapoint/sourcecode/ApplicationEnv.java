@@ -8,6 +8,8 @@ public class ApplicationEnv {
 
     public static final String SQS_ENDPOINT = "SQS_ENDPOINT";
     public static final String SQS_REGION = "SQS_REGION";
+    public static final String SQS_ACCESS_KEY = "SQS_ACCESS_KEY";
+    public static final String SQS_SECRET_KEY = "SQS_SECRET_KEY";
     public static final String SQS_QUEUE_URL = "SQS_QUEUE_URL";
 
     public static final String GITHUB_HOST = "GITHUB_HOST";

@@ -3,6 +3,7 @@ package tdl.datapoint.sourcecode;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -12,6 +13,10 @@ import tdl.datapoint.sourcecode.support.LocalGithub;
 import tdl.datapoint.sourcecode.support.LocalS3Bucket;
 import tdl.datapoint.sourcecode.support.LocalSQSQueue;
 import tdl.datapoint.sourcecode.support.TestSrcsFile;
+import tdl.participant.queue.connector.EventProcessingException;
+import tdl.participant.queue.connector.QueueEventHandlers;
+import tdl.participant.queue.connector.SqsEventQueue;
+import tdl.participant.queue.events.SourceCodeUpdatedEvent;
 
 import java.io.IOException;
 import java.util.*;
@@ -30,10 +35,11 @@ public class SourcecodeDatapointAcceptanceTest {
     public TemporaryFolder folder = new TemporaryFolder();
 
     private SourceCodeUploadHandler sourceCodeUploadHandler;
-    private LocalSQSQueue localSQSQueue;
+    private SqsEventQueue sqsEventQueue;
+    private Stack<SourceCodeUpdatedEvent> sourceCodeUpdatedEvents;
 
     @Before
-    public void setUp() {
+    public void setUp() throws EventProcessingException {
         environmentVariables.set(ApplicationEnv.GITHUB_REPO_OWNER, LocalGithub.GITHUB_REPO_OWNER);
         environmentVariables.set(ApplicationEnv.GITHUB_AUTH_TOKEN, LocalGithub.GITHUB_TOKEN);
         environmentVariables.set(ApplicationEnv.GITHUB_HOST, LocalGithub.GITHUB_HOST);
@@ -42,15 +48,28 @@ public class SourcecodeDatapointAcceptanceTest {
 
         environmentVariables.set(ApplicationEnv.SQS_ENDPOINT, LocalSQSQueue.ELASTIC_MQ_URL);
         environmentVariables.set(ApplicationEnv.SQS_REGION, LocalSQSQueue.ELASTIC_MQ_REGION);
-        environmentVariables.set(ApplicationEnv.SQS_QUEUE_URL, LocalSQSQueue.ELASTIC_MQ_SQS_QUEUE_URL);
+        environmentVariables.set(ApplicationEnv.SQS_ACCESS_KEY, LocalSQSQueue.ELASTIC_MQ_ACCESS_KEY);
+        environmentVariables.set(ApplicationEnv.SQS_SECRET_KEY, LocalSQSQueue.ELASTIC_MQ_SECRET_KEY);
+        environmentVariables.set(ApplicationEnv.SQS_QUEUE_URL, LocalSQSQueue.ELASTIC_MQ_QUEUE_URL);
 
         environmentVariables.set(ApplicationEnv.S3_ENDPOINT, LocalS3Bucket.MINIO_URL);
         environmentVariables.set(ApplicationEnv.S3_REGION, LocalS3Bucket.MINIO_REGION);
         environmentVariables.set(ApplicationEnv.S3_ACCESS_KEY, LocalS3Bucket.MINIO_ACCESS_KEY);
         environmentVariables.set(ApplicationEnv.S3_SECRET_KEY, LocalS3Bucket.MINIO_SECRET_KEY);
 
-        localSQSQueue = LocalSQSQueue.createInstance();
         sourceCodeUploadHandler = new SourceCodeUploadHandler();
+
+        sqsEventQueue = LocalSQSQueue.createInstance();
+
+        QueueEventHandlers queueEventHandlers = new QueueEventHandlers();
+        sourceCodeUpdatedEvents = new Stack<>();
+        queueEventHandlers.put(SourceCodeUpdatedEvent.class, sourceCodeUpdatedEvents::add);
+        sqsEventQueue.subscribeToMessages(queueEventHandlers);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        sqsEventQueue.unsubscribeFromMessages();
     }
 
     @Test
@@ -68,7 +87,9 @@ public class SourcecodeDatapointAcceptanceTest {
                 NO_CONTEXT);
 
         // Then - Repo is created with the contents of the SRCS file
-        String repoUrl1 = localSQSQueue.getFirstMessageBody();
+        waitForQueueToReceiveEvents();
+        SourceCodeUpdatedEvent queueEvent1 = sourceCodeUpdatedEvents.pop();
+        String repoUrl1 = queueEvent1.getSourceCodeLink();
         assertThat(repoUrl1, allOf(startsWith("file:///"),
                 containsString(challengeId),
                 endsWith(participantId)));
@@ -81,15 +102,19 @@ public class SourcecodeDatapointAcceptanceTest {
                 NO_CONTEXT);
 
         // Then - The SRCS file is appended to the repo
-        String repoUrl2 = localSQSQueue.getFirstMessageBody();
+        waitForQueueToReceiveEvents();
+        SourceCodeUpdatedEvent queueEvent2 = sourceCodeUpdatedEvents.pop();
+        String repoUrl2 = queueEvent2.getSourceCodeLink();
         assertThat(repoUrl1, equalTo(repoUrl2));
         assertThat(LocalGithub.getCommitMessages(repoUrl2), equalTo(getCombinedMessages(srcs1, srcs2)));
         assertThat(LocalGithub.getTags(repoUrl2), equalTo(getCombinedTags(srcs1, srcs2)));
     }
 
-
     //~~~~~~~~~~ Helpers ~~~~~~~~~~~~~`
 
+    private static void waitForQueueToReceiveEvents() throws InterruptedException {
+        Thread.sleep(500);
+    }
 
     private static String generateId() {
         return UUID.randomUUID().toString().replaceAll("-","");

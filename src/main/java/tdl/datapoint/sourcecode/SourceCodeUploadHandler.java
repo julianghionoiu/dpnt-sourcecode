@@ -8,9 +8,13 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.sqs.AmazonSQS;
+import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import org.eclipse.egit.github.core.Repository;
 import org.eclipse.jgit.api.Git;
 import tdl.datapoint.sourcecode.processing.*;
+import tdl.participant.queue.connector.SqsEventQueue;
+import tdl.participant.queue.events.SourceCodeUpdatedEvent;
 
 import java.util.Map;
 import java.util.Optional;
@@ -24,9 +28,8 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
     private AmazonS3 s3Client;
     private RemoteGithub remoteGithubClient;
     private LocalGitClient localGitClient;
-    private SQSMessageQueue queue;
+    private SqsEventQueue participantEventQueue;
     private S3SrcsToGitExporter srcsToGitExporter;
-    private String eventQueueUrl;
 
     private static String getEnv(String key) {
         return Optional.ofNullable(System.getenv(key))
@@ -35,7 +38,7 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
     }
 
     SourceCodeUploadHandler() {
-        s3Client = configureS3Client(
+        s3Client = createS3Client(
                 getEnv(S3_ENDPOINT),
                 getEnv(S3_REGION),
                 getEnv(S3_ACCESS_KEY),
@@ -53,20 +56,34 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
 
         srcsToGitExporter = new S3SrcsToGitExporter();
 
-        queue = new SQSMessageQueue(
-                getEnv(SQS_ENDPOINT),
-                getEnv(SQS_REGION));
 
-        eventQueueUrl = getEnv(SQS_QUEUE_URL);
+        AmazonSQS client = createSQSClient(
+                getEnv(SQS_ENDPOINT),
+                getEnv(SQS_REGION),
+                getEnv(SQS_ACCESS_KEY),
+                getEnv(SQS_SECRET_KEY)
+        );
+
+        String queueUrl = getEnv(SQS_QUEUE_URL);
+        participantEventQueue = new SqsEventQueue(client, queueUrl);
     }
 
-    private static AmazonS3 configureS3Client(String endpoint, String region, String accessKey, String secretKey) {
+    private static AmazonS3 createS3Client(String endpoint, String region, String accessKey, String secretKey) {
         AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
         builder = builder.withPathStyleAccessEnabled(true)
                 .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(endpoint, region))
                 .withCredentials(new AWSStaticCredentialsProvider(
                         new BasicAWSCredentials(accessKey, secretKey)));
         return builder.build();
+    }
+
+    private static AmazonSQS createSQSClient(String serviceEndpoint, String signingRegion, String accessKey, String secretKey) {
+        AwsClientBuilder.EndpointConfiguration endpointConfiguration =
+                new AwsClientBuilder.EndpointConfiguration(serviceEndpoint, signingRegion);
+        return AmazonSQSClientBuilder.standard()
+                .withEndpointConfiguration(endpointConfiguration)
+                .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey)))
+                .build();
     }
 
     @Override
@@ -81,16 +98,18 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
     }
 
     private void handleS3Event(S3BucketEvent event) throws Exception {
+        String participantId = event.getParticipantId();
+        String challengeId = event.getChallengeId();
         Repository remoteRepo = remoteGithubClient.createNewRepositoryIfNotExists(
-                event.getChallengeId(), event.getParticipantId());
+                challengeId, participantId);
         Git localRepo = localGitClient.cloneToTemp(remoteRepo.getCloneUrl());
 
         S3Object remoteSRCSFile = s3Client.getObject(event.getBucket(), event.getKey());
         srcsToGitExporter.export(remoteSRCSFile, localRepo);
         localGitClient.pushToRemote(localRepo);
 
-        eventQueueUrl = getEnv(SQS_QUEUE_URL);
-        queue.send(remoteRepo.getCloneUrl(), eventQueueUrl);
+        participantEventQueue.send(
+                new SourceCodeUpdatedEvent(participantId, challengeId, remoteRepo.getCloneUrl()));
     }
 
 }
