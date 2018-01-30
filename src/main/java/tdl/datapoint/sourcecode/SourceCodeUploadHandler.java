@@ -31,13 +31,14 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
     private SqsEventQueue participantEventQueue;
     private S3SrcsToGitExporter srcsToGitExporter;
 
-    private static String getEnv(String key) {
-        return Optional.ofNullable(System.getenv(key))
+    private static String getEnv(ApplicationEnv key) {
+        return Optional.ofNullable(System.getenv(key.name()))
                 .orElseThrow(()
                         -> new RuntimeException("[Startup] Environment variable " + key + " not set"));
     }
 
-    SourceCodeUploadHandler() {
+    @SuppressWarnings("WeakerAccess")
+    public SourceCodeUploadHandler() {
         s3Client = createS3Client(
                 getEnv(S3_ENDPOINT),
                 getEnv(S3_REGION),

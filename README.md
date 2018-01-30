@@ -1,17 +1,18 @@
 # dpnt-sourcecode
 Datapoint processing - sourcecode
 
-
-## Deploying
-
-To deploy the function, execute
+## Setting up Serverless
 
 ```
-gradle build
-serverless deploy
+npm install -g serverless
+npm install -g serverless-plugin-existing-s3
+
+serverless info
 ```
 
-## Testing
+
+
+## Acceptance test
 
 Start external dependencies
 ```bash
@@ -25,6 +26,28 @@ Run the acceptance test
 ```
 ./gradlew --rerun-tasks test jacocoTestReport
 ```
+
+
+## Packaging
+
+Have a look at `serverless.yml`
+
+Create an environment configuration in `./config` by creating copy after `config.reference.yml.template`
+
+## Local testing
+
+Build package
+```
+./gradlew clean build
+```
+
+Invoke function manually
+```
+serverless invoke local --function srcs-github-export
+```
+
+
+## Clean up
 
 Start external dependencies
 ```bash

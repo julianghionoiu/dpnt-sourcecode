@@ -40,22 +40,22 @@ public class SourcecodeDatapointAcceptanceTest {
 
     @Before
     public void setUp() throws EventProcessingException {
-        environmentVariables.set(ApplicationEnv.GITHUB_REPO_OWNER, LocalGithub.GITHUB_REPO_OWNER);
-        environmentVariables.set(ApplicationEnv.GITHUB_AUTH_TOKEN, LocalGithub.GITHUB_TOKEN);
-        environmentVariables.set(ApplicationEnv.GITHUB_HOST, LocalGithub.GITHUB_HOST);
-        environmentVariables.set(ApplicationEnv.GITHUB_PORT, LocalGithub.GITHUB_PORT);
-        environmentVariables.set(ApplicationEnv.GITHUB_PROTOCOL, LocalGithub.GITHUB_PROTOCOL);
+        env(ApplicationEnv.GITHUB_REPO_OWNER, LocalGithub.GITHUB_REPO_OWNER);
+        env(ApplicationEnv.GITHUB_AUTH_TOKEN, LocalGithub.GITHUB_TOKEN);
+        env(ApplicationEnv.GITHUB_HOST, LocalGithub.GITHUB_HOST);
+        env(ApplicationEnv.GITHUB_PORT, LocalGithub.GITHUB_PORT);
+        env(ApplicationEnv.GITHUB_PROTOCOL, LocalGithub.GITHUB_PROTOCOL);
 
-        environmentVariables.set(ApplicationEnv.SQS_ENDPOINT, LocalSQSQueue.ELASTIC_MQ_URL);
-        environmentVariables.set(ApplicationEnv.SQS_REGION, LocalSQSQueue.ELASTIC_MQ_REGION);
-        environmentVariables.set(ApplicationEnv.SQS_ACCESS_KEY, LocalSQSQueue.ELASTIC_MQ_ACCESS_KEY);
-        environmentVariables.set(ApplicationEnv.SQS_SECRET_KEY, LocalSQSQueue.ELASTIC_MQ_SECRET_KEY);
-        environmentVariables.set(ApplicationEnv.SQS_QUEUE_URL, LocalSQSQueue.ELASTIC_MQ_QUEUE_URL);
+        env(ApplicationEnv.SQS_ENDPOINT, LocalSQSQueue.ELASTIC_MQ_URL);
+        env(ApplicationEnv.SQS_REGION, LocalSQSQueue.ELASTIC_MQ_REGION);
+        env(ApplicationEnv.SQS_ACCESS_KEY, LocalSQSQueue.ELASTIC_MQ_ACCESS_KEY);
+        env(ApplicationEnv.SQS_SECRET_KEY, LocalSQSQueue.ELASTIC_MQ_SECRET_KEY);
+        env(ApplicationEnv.SQS_QUEUE_URL, LocalSQSQueue.ELASTIC_MQ_QUEUE_URL);
 
-        environmentVariables.set(ApplicationEnv.S3_ENDPOINT, LocalS3Bucket.MINIO_URL);
-        environmentVariables.set(ApplicationEnv.S3_REGION, LocalS3Bucket.MINIO_REGION);
-        environmentVariables.set(ApplicationEnv.S3_ACCESS_KEY, LocalS3Bucket.MINIO_ACCESS_KEY);
-        environmentVariables.set(ApplicationEnv.S3_SECRET_KEY, LocalS3Bucket.MINIO_SECRET_KEY);
+        env(ApplicationEnv.S3_ENDPOINT, LocalS3Bucket.MINIO_URL);
+        env(ApplicationEnv.S3_REGION, LocalS3Bucket.MINIO_REGION);
+        env(ApplicationEnv.S3_ACCESS_KEY, LocalS3Bucket.MINIO_ACCESS_KEY);
+        env(ApplicationEnv.S3_SECRET_KEY, LocalS3Bucket.MINIO_SECRET_KEY);
 
         sourceCodeUploadHandler = new SourceCodeUploadHandler();
 
@@ -65,6 +65,10 @@ public class SourcecodeDatapointAcceptanceTest {
         sourceCodeUpdatedEvents = new Stack<>();
         queueEventHandlers.put(SourceCodeUpdatedEvent.class, sourceCodeUpdatedEvents::add);
         sqsEventQueue.subscribeToMessages(queueEventHandlers);
+    }
+
+    private void env(ApplicationEnv key, String value) {
+        environmentVariables.set(key.name(), value);
     }
 
     @After

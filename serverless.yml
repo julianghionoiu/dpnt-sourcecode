@@ -7,18 +7,30 @@ provider:
     name: aws
     runtime: java8
     stage: ${opt:stage, 'dev'}
+    region: eu-west-2
+
+    memorySize: 1536 # in MB
+    timeout: 30 # in seconds
+    versionFunctions: false
+    onError: arn:aws:sns:eu-west-2:577770582757:MyselfEU2 # Ref and Fn::ImportValue are supported as well
+
+    custom: ${file(config.{$self:provider.stage}.yaml)
     environment:
-        GITHUB_USERNAME:  ${file(config.{$self:provider.stage}.json):GITHUB_USERNAME}
-        SQS_QUEUE_URL: ${file(config.{$self:provider.stage}.json):SQS_QUEUE_URL}
-        GITHUB_TOKEN: ${file(config.{$self:provider.stage}.json):GITHUB_TOKEN}
+#        GITHUB_USERNAME: ${self:custom.GITHUB_USERNAME}
+#        SQS_QUEUE_URL: ${self:custom.SQS_QUEUE_URL}
+#        GITHUB_TOKEN: ${self:custom.GITHUB_TOKEN}
 
 package:
-    artifact: build/distributions/tdl-srcs-github-export.zip
+    artifact: build/libs/dpnt-sourcecode-all.jar
 
 functions:
     srcs-github-export:
-        #TODO:
-        # - Rename handler when new function added
-        # - Add external S3 event attaching plugin
-        # - Configure memory and timeout
-        handler: tdl.datapoint.sourcecode.Handler
+        handler: tdl.datapoint.sourcecode.SourceCodeUploadHandler
+        events:
+          - existingS3:
+              bucket: BUCKET_NAME
+              events:
+                - s3:ObjectCreated:*
+              rules:
+                - prefix: images/
+                - suffix: .jpg

@@ -15,4 +15,4 @@ out
 node_modules
 
 tmp
-elasticmq-server.jar
+config/*.yml

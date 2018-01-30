@@ -1,3 +1,16 @@
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
+    }
+}
+
+
 apply plugin: 'java'
 
 repositories {
@@ -53,22 +66,4 @@ compileJava {
     options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
 }
 
-
-apply plugin: "jacoco"
-
-// Task for building the zip file for upload
-task buildZip(type: Zip) {
-    // TODO: Rename to other when adding new function
-    baseName = "tdl-srcs-github-export"
-    from compileJava
-    from processResources
-    into('lib') {
-        from configurations.runtime
-    }
-}
-
-build.dependsOn buildZip
-
-task wrapper(type: Wrapper) {
-    gradleVersion = '3.5'
-}
+apply plugin: 'com.github.johnrengelman.shadow'
