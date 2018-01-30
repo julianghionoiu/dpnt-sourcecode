@@ -29,5 +29,9 @@ public class LocalGitClient {
         localRepo.push()
                 .setCredentialsProvider(credentialsProvider)
                 .call();
+        localRepo.push()
+                .setCredentialsProvider(credentialsProvider)
+                .setPushTags()
+                .call();
     }
 }

@@ -35,4 +35,17 @@ public class TestSrcsFile {
         }
         return messages;
     }
+
+    public List<String> getTags() throws IOException {
+        Reader reader = new Reader(asFile());
+        List<String> tags = new ArrayList<>();
+        while (reader.hasNext()) {
+            Segment segment = reader.nextSegment();
+            String tag = segment.getTag().trim();
+            if (!tag.isEmpty()) {
+                tags.add(tag);
+            }
+        }
+        return tags;
+    }
 }

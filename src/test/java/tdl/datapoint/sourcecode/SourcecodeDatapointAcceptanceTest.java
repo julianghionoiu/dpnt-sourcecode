@@ -3,8 +3,6 @@ package tdl.datapoint.sourcecode;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.revwalk.RevCommit;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -15,9 +13,7 @@ import tdl.datapoint.sourcecode.support.LocalS3Bucket;
 import tdl.datapoint.sourcecode.support.LocalSQSQueue;
 import tdl.datapoint.sourcecode.support.TestSrcsFile;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.util.*;
 
 import static org.hamcrest.CoreMatchers.*;
@@ -63,11 +59,8 @@ public class SourcecodeDatapointAcceptanceTest {
         String challengeId = generateId();
         String participantId = generateId();
         String s3destination = String.format("%s/%s/file.srcs", challengeId, participantId);
-        TestSrcsFile srcs1 = new TestSrcsFile("test.srcs");
-        TestSrcsFile srcs2 = new TestSrcsFile("test.srcs");
-        List<String> combinedSrcsMessages = new ArrayList<>();
-        combinedSrcsMessages.addAll(srcs1.getCommitMessages());
-        combinedSrcsMessages.addAll(srcs2.getCommitMessages());
+        TestSrcsFile srcs1 = new TestSrcsFile("test1.srcs");
+        TestSrcsFile srcs2 = new TestSrcsFile("test2.srcs");
 
         // When - Upload event happens
         sourceCodeUploadHandler.handleRequest(
@@ -79,7 +72,8 @@ public class SourcecodeDatapointAcceptanceTest {
         assertThat(repoUrl1, allOf(startsWith("file:///"),
         //Obs might need to add the ChallengeID: containsString(challengeId),
                 endsWith(participantId)));
-        assertThat(getCommitMessagesFromGit(repoUrl1), equalTo(srcs1.getCommitMessages()));
+        assertThat(LocalGithub.getCommitMessages(repoUrl1), equalTo(srcs1.getCommitMessages()));
+        assertThat(LocalGithub.getTags(repoUrl1), equalTo(srcs1.getTags()));
 
         // When - Another upload event happens
         sourceCodeUploadHandler.handleRequest(
@@ -89,28 +83,34 @@ public class SourcecodeDatapointAcceptanceTest {
         // Then - The SRCS file is appended to the repo
         String repoUrl2 = localSQSQueue.getFirstMessageBody();
         assertThat(repoUrl1, equalTo(repoUrl2));
-        assertThat(getCommitMessagesFromGit(repoUrl2), equalTo(combinedSrcsMessages));
+        assertThat(LocalGithub.getCommitMessages(repoUrl2), equalTo(getCombinedMessages(srcs1, srcs2)));
+        assertThat(LocalGithub.getTags(repoUrl2), equalTo(getCombinedTags(srcs1, srcs2)));
     }
 
+
     //~~~~~~~~~~ Helpers ~~~~~~~~~~~~~`
+
 
     private static String generateId() {
         return UUID.randomUUID().toString().replaceAll("-","");
     }
 
-    private static List<String> getCommitMessagesFromGit(String gitRepoUrl) throws Exception {
-        Git git = Git.open(new File(new URI(gitRepoUrl)));
-        List<String> messages = new ArrayList<>();
-        Iterable<RevCommit> commits = git.log().call();
-        for (RevCommit commit : commits) {
-            messages.add(commit.getFullMessage());
-        }
-        Collections.reverse(messages);
-        return messages;
-    }
-
     private static Map<String, Object> convertToMap(String json) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+    }
+
+    private static List<String> getCombinedMessages(TestSrcsFile srcs1, TestSrcsFile srcs2) throws IOException {
+        List<String> combinedList = new ArrayList<>();
+        combinedList.addAll(srcs1.getCommitMessages());
+        combinedList.addAll(srcs2.getCommitMessages());
+        return combinedList;
+    }
+
+    private static List<String> getCombinedTags(TestSrcsFile srcs1, TestSrcsFile srcs2) throws IOException {
+        List<String> combinedList = new ArrayList<>();
+        combinedList.addAll(srcs1.getTags());
+        combinedList.addAll(srcs2.getTags());
+        return combinedList;
     }
 }
