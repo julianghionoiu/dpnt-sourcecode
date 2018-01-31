@@ -51,8 +51,8 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
                 getEnv(GITHUB_HOST),
                 Integer.parseInt(getEnv(GITHUB_PORT)),
                 getEnv(GITHUB_PROTOCOL),
-                getEnv(GITHUB_AUTH_TOKEN),
-                getEnv(GITHUB_REPO_OWNER));
+                getEnv(GITHUB_ORGANISATION),
+                getEnv(GITHUB_AUTH_TOKEN));
 
         localGitClient = new LocalGitClient(
                 getEnv(GITHUB_AUTH_TOKEN));

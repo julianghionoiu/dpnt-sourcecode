@@ -13,8 +13,8 @@ public class LocalGithub {
     public static final String GITHUB_HOST = "localhost";
     public static final String GITHUB_PORT = "9556";
     public static final String GITHUB_PROTOCOL = "http";
+    public static final String GITHUB_ORGANISATION = "myorg";
     public static final String GITHUB_TOKEN = "test";
-    public static final String GITHUB_REPO_OWNER = "dpnttest";
 
     public static List<String> getCommitMessages(String gitRepoUrl) throws Exception {
         Git git = Git.open(new File(new URI(gitRepoUrl)));

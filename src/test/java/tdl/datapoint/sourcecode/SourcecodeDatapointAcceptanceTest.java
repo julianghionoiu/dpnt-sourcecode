@@ -41,11 +41,11 @@ public class SourcecodeDatapointAcceptanceTest {
     @Before
     public void setUp() throws EventProcessingException {
         //DEBT should read this from the `config/env.local.yml`
-        env(ApplicationEnv.GITHUB_REPO_OWNER, LocalGithub.GITHUB_REPO_OWNER);
-        env(ApplicationEnv.GITHUB_AUTH_TOKEN, LocalGithub.GITHUB_TOKEN);
         env(ApplicationEnv.GITHUB_HOST, LocalGithub.GITHUB_HOST);
         env(ApplicationEnv.GITHUB_PORT, LocalGithub.GITHUB_PORT);
         env(ApplicationEnv.GITHUB_PROTOCOL, LocalGithub.GITHUB_PROTOCOL);
+        env(ApplicationEnv.GITHUB_ORGANISATION, LocalGithub.GITHUB_ORGANISATION);
+        env(ApplicationEnv.GITHUB_AUTH_TOKEN, LocalGithub.GITHUB_TOKEN);
 
         env(ApplicationEnv.SQS_ENDPOINT, LocalSQSQueue.ELASTIC_MQ_URL);
         env(ApplicationEnv.SQS_REGION, LocalSQSQueue.ELASTIC_MQ_REGION);

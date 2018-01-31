@@ -1,17 +1,6 @@
 # dpnt-sourcecode
 Datapoint processing - sourcecode
 
-## Setting up Serverless
-
-```
-npm install -g serverless
-npm install -g serverless-plugin-existing-s3
-
-serverless info
-```
-
-
-
 ## Acceptance test
 
 Start external dependencies
@@ -30,7 +19,15 @@ Run the acceptance test
 
 ## Packaging
 
-Have a look at `serverless.yml`
+Install Serverless
+```
+npm install -g serverless
+npm install -g serverless-plugin-existing-s3
+
+serverless info
+```
+
+Now, have a look at `serverless.yml`
 
 Create an environment configuration in `./config` by creating copy after `config.local.template`
 
@@ -38,30 +35,46 @@ Create an environment configuration in `./config` by creating copy after `config
 
 Build package
 ```
-./gradlew clean build
+./gradlew clean test shadowJar
 ```
 
 Invoke function manually
 ```
-serverless invoke local --function srcs-github-export --path tdl/dpnt-sourcecode/src/test/resources/tdl/datapoint/sourcecode/sample_s3_event.json
+SLS_DEBUG=* serverless invoke local --function srcs-github-export --path tdl/dpnt-sourcecode/src/test/resources/tdl/datapoint/sourcecode/sample_s3_event.json
 ```
 
 ## Remote deployment
 
+Obtain the Github access token by following this tutorial:
+https://developer.github.com/apps/building-github-apps/authentication-options-for-github-apps/
+
 Build package
 ```
-./gradlew clean build
+./gradlew clean test shadowJar
 ```
 
 Deploy to DEV
 ```
-serverless deploy
+serverless deploy --stage dev
 ```
 
 Deploy to LIVE
 ```
 serverless deploy --stage live
 ```
+
+## Remote testing
+
+Create an S3 event json and place it in a temp folder, say `xyz/s3_event.json`
+Set the bucket and the key to some meaningful values.
+
+Invoke the dev lambda
+
+```
+SLS_DEBUG=* serverless invoke --stage dev --function srcs-github-export --path xyz/s3_event.json
+```
+
+
 
 ## Clean up
 
