@@ -3,10 +3,10 @@
     {
       "s3": {
         "bucket": {
-          "name": "localbucket"
+          "name": "tdl-test-auth"
         },
         "object": {
-          "key": "FIZ/file.srcs"
+          "key": "TCH/user01/test1.srcs"
         }
       }
     }
