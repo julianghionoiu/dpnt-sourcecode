@@ -7,6 +7,7 @@
 .project
 .classpath
 out
+.DS_Store
 
 # Serverless directories
 .serverless

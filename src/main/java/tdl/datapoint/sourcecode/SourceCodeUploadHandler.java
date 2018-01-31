@@ -113,7 +113,7 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
         localGitClient.pushToRemote(localRepo);
 
         participantEventQueue.send(
-                new SourceCodeUpdatedEvent(participantId, challengeId, remoteRepo.getCloneUrl()));
+                new SourceCodeUpdatedEvent(participantId, challengeId, remoteRepo.getHtmlUrl()));
     }
 
 }
