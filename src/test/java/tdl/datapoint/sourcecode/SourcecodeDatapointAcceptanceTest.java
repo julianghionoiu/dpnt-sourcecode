@@ -64,7 +64,7 @@ public class SourcecodeDatapointAcceptanceTest {
 
         QueueEventHandlers queueEventHandlers = new QueueEventHandlers();
         sourceCodeUpdatedEvents = new Stack<>();
-        queueEventHandlers.put(SourceCodeUpdatedEvent.class, sourceCodeUpdatedEvents::add);
+        queueEventHandlers.on(SourceCodeUpdatedEvent.class, sourceCodeUpdatedEvents::add);
         sqsEventQueue.subscribeToMessages(queueEventHandlers);
     }
 

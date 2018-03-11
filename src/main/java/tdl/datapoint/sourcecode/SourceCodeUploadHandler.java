@@ -112,8 +112,8 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
         srcsToGitExporter.export(remoteSRCSFile, localRepo);
         localGitClient.pushToRemote(localRepo);
 
-        participantEventQueue.send(
-                new SourceCodeUpdatedEvent(participantId, challengeId, remoteRepo.getHtmlUrl()));
+        participantEventQueue.send(new SourceCodeUpdatedEvent(System.currentTimeMillis(),
+                        participantId, challengeId, remoteRepo.getHtmlUrl()));
     }
 
 }
