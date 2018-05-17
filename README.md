@@ -18,7 +18,7 @@ Run the acceptance test
 
 Stop external dependencies
 ```bash
-python local-sqs/fetch-elasticmq-and-run.py stop
+python local-sqs/elasticmq-wrapper.py stop
 python local-github/local-github-run.py stop
 python local-s3/minio-wrapper.py stop
 ```
