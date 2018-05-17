@@ -16,20 +16,25 @@ Run the acceptance test
 ./gradlew --rerun-tasks test jacocoTestReport
 ```
 
+Stop external dependencies
+```bash
+python local-sqs/fetch-elasticmq-and-run.py stop
+python local-github/local-github-run.py stop
+python local-s3/minio-wrapper.py stop
+```
 
 ## Packaging
 
 Install Serverless
 ```
 npm install -g serverless
-npm install -g serverless-plugin-existing-s3
 
 serverless info
 ```
 
 Now, have a look at `serverless.yml`
 
-Create an environment configuration in `./config` by creating copy after `config.local.template`
+Create an environment configuration in `./config` by creating copy after `env.local.yml`
 
 ## Local testing
 
@@ -71,16 +76,5 @@ Set the bucket and the key to some meaningful values.
 Invoke the dev lambda
 
 ```
-SLS_DEBUG=* serverless invoke --stage dev --function srcs-github-export --path src/test/resources/tdl/datapoint/sourcecode/sample_s3_event.json
-```
-
-
-
-## Clean up
-
-Start external dependencies
-```bash
-python local-sqs/fetch-elasticmq-and-run.py stop
-python local-github/local-github-run.py stop
-python local-s3/minio-wrapper.py stop
+SLS_DEBUG=* serverless invoke --stage dev --function dpnt-sourcecode --path src/test/resources/tdl/datapoint/sourcecode/sample_s3_event.json
 ```
