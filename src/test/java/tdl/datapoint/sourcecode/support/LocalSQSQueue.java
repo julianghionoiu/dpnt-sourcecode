@@ -1,7 +1,6 @@
 package tdl.datapoint.sourcecode.support;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
@@ -14,16 +13,13 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 public class LocalSQSQueue {
     public static SqsEventQueue createInstance(String endpoint,
-                                        String region,
-                                        String accessKey,
-                                        String secretKey,
-                                        String queueUrl) {
+                                               String region,
+                                               String queueUrl) {
         AwsClientBuilder.EndpointConfiguration endpointConfiguration =
                 new AwsClientBuilder.EndpointConfiguration(endpoint, region);
         AmazonSQS client = AmazonSQSClientBuilder.standard()
                 .withEndpointConfiguration(endpointConfiguration)
-                .withCredentials(new AWSStaticCredentialsProvider(
-                        new BasicAWSCredentials(accessKey, secretKey)))
+                .withCredentials(new DefaultAWSCredentialsProviderChain())
                 .build();
 
         client.purgeQueue(new PurgeQueueRequest(queueUrl));

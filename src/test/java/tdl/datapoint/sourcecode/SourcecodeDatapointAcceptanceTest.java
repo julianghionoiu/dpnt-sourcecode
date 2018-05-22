@@ -43,19 +43,17 @@ public class SourcecodeDatapointAcceptanceTest {
 
     @Before
     public void setUp() throws EventProcessingException, IOException {
-        setEnvFrom(Paths.get("config", "env.local.yml"));
+        environmentVariables.set("AWS_ACCESS_KEY_ID","local_test_access_key");
+        environmentVariables.set("AWS_SECRET_KEY","local_test_secret_key");
+        setEnvFrom(environmentVariables, Paths.get("config", "env.local.yml"));
 
         localS3Bucket = LocalS3Bucket.createInstance(
                 getEnv(ApplicationEnv.S3_ENDPOINT),
-                getEnv(ApplicationEnv.S3_REGION),
-                getEnv(ApplicationEnv.S3_ACCESS_KEY),
-                getEnv(ApplicationEnv.S3_SECRET_KEY));
+                getEnv(ApplicationEnv.S3_REGION));
 
         sqsEventQueue = LocalSQSQueue.createInstance(
                 getEnv(ApplicationEnv.SQS_ENDPOINT),
                 getEnv(ApplicationEnv.SQS_REGION),
-                getEnv(ApplicationEnv.SQS_ACCESS_KEY),
-                getEnv(ApplicationEnv.SQS_SECRET_KEY),
                 getEnv(ApplicationEnv.SQS_QUEUE_URL));
 
         sourceCodeUploadHandler = new SourceCodeUploadHandler();
@@ -74,13 +72,13 @@ public class SourcecodeDatapointAcceptanceTest {
         return env;
     }
 
-    private void setEnvFrom(Path path) throws IOException {
+    private static void setEnvFrom(EnvironmentVariables environmentVariables, Path path) throws IOException {
         String yamlString = Files.lines(path).collect(Collectors.joining("\n"));
 
         Yaml yaml = new Yaml();
         Map<String, String> values = yaml.load(yamlString);
 
-        values.forEach((key, value) -> environmentVariables.set(key, value));
+        values.forEach(environmentVariables::set);
     }
 
     @After

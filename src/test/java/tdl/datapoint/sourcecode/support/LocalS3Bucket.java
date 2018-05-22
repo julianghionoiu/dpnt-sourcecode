@@ -1,8 +1,6 @@
 package tdl.datapoint.sourcecode.support;
 
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -16,14 +14,13 @@ public class LocalS3Bucket {
         this.s3Client = s3Client;
     }
 
-    public static LocalS3Bucket createInstance(String endpoint, String region, String accessKey, String secretKey) {
+    public static LocalS3Bucket createInstance(String endpoint, String region) {
         AwsClientBuilder.EndpointConfiguration endpointConfiguration =
                 new AwsClientBuilder.EndpointConfiguration(endpoint, region);
-        AWSCredentials credential = new BasicAWSCredentials(accessKey, secretKey);
         AmazonS3 s3Client = AmazonS3ClientBuilder
                 .standard()
                 .withPathStyleAccessEnabled(true)
-                .withCredentials(new AWSStaticCredentialsProvider(credential))
+                .withCredentials(new DefaultAWSCredentialsProviderChain())
                 .withEndpointConfiguration(endpointConfiguration)
                 .build();
         return new LocalS3Bucket(s3Client);

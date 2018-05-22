@@ -1,7 +1,6 @@
 package tdl.datapoint.sourcecode;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
@@ -12,12 +11,14 @@ import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import org.eclipse.egit.github.core.Repository;
 import org.eclipse.jgit.api.Git;
-import tdl.datapoint.sourcecode.processing.*;
+import tdl.datapoint.sourcecode.processing.LocalGitClient;
+import tdl.datapoint.sourcecode.processing.RemoteGithub;
+import tdl.datapoint.sourcecode.processing.S3BucketEvent;
+import tdl.datapoint.sourcecode.processing.S3SrcsToGitExporter;
 import tdl.participant.queue.connector.SqsEventQueue;
 import tdl.participant.queue.events.SourceCodeUpdatedEvent;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -43,9 +44,7 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
     public SourceCodeUploadHandler() {
         s3Client = createS3Client(
                 getEnv(S3_ENDPOINT),
-                getEnv(S3_REGION),
-                getEnv(S3_ACCESS_KEY),
-                getEnv(S3_SECRET_KEY));
+                getEnv(S3_REGION));
 
         remoteGithubClient = new RemoteGithub(
                 getEnv(GITHUB_HOST),
@@ -61,30 +60,27 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
 
         AmazonSQS client = createSQSClient(
                 getEnv(SQS_ENDPOINT),
-                getEnv(SQS_REGION),
-                getEnv(SQS_ACCESS_KEY),
-                getEnv(SQS_SECRET_KEY)
+                getEnv(SQS_REGION)
         );
 
         String queueUrl = getEnv(SQS_QUEUE_URL);
         participantEventQueue = new SqsEventQueue(client, queueUrl);
     }
 
-    private static AmazonS3 createS3Client(String endpoint, String region, String accessKey, String secretKey) {
+    private static AmazonS3 createS3Client(String endpoint, String region) {
         AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
         builder = builder.withPathStyleAccessEnabled(true)
                 .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(endpoint, region))
-                .withCredentials(new AWSStaticCredentialsProvider(
-                        new BasicAWSCredentials(accessKey, secretKey)));
+                .withCredentials(new DefaultAWSCredentialsProviderChain());
         return builder.build();
     }
 
-    private static AmazonSQS createSQSClient(String serviceEndpoint, String signingRegion, String accessKey, String secretKey) {
+    private static AmazonSQS createSQSClient(String serviceEndpoint, String signingRegion) {
         AwsClientBuilder.EndpointConfiguration endpointConfiguration =
                 new AwsClientBuilder.EndpointConfiguration(serviceEndpoint, signingRegion);
         return AmazonSQSClientBuilder.standard()
                 .withEndpointConfiguration(endpointConfiguration)
-                .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey)))
+                .withCredentials(new DefaultAWSCredentialsProviderChain())
                 .build();
     }
 
