@@ -3,10 +3,6 @@
 ################################################################################
 service: dpnt-sourcecode
 
-config:
-  s3BucketARN: ${file(config/env.${self:provider.stage}.yml):S3_BUCKET_ARN}
-  sqsQueueARN: ${file(config/env.${self:provider.stage}.yml):SQS_QUEUE_ARN}
-
 provider:
   name: aws
   runtime: java8
@@ -26,16 +22,16 @@ provider:
        - "s3:ListBucket"
        - "s3:ListBucketMultipartUploads"
       Resource:
-       - ${self:config.s3BucketARN}
+       - ${self:provider.environment.S3_BUCKET_ARN}
 
     # Read SRCS bucket
     - Effect: "Allow"
       Action:
-       - "s3:GetObject",
+       - "s3:GetObject"
       Resource:
         Fn::Join:
           - ""
-          - - ${self:config.s3BucketARN}
+          - - ${self:provider.environment.S3_BUCKET_ARN}
             - "/*"
 
     # Publish events
@@ -45,7 +41,7 @@ provider:
        - "sqs:SendMessageBatch"
        - "sqs:SendMessage"
       Resource:
-       - ${self:config.sqsQueueARN}
+       - ${self:provider.environment.SQS_QUEUE_ARN}
 
 package:
   artifact: build/libs/dpnt-sourcecode-all.jar

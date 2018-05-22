@@ -19,7 +19,7 @@ Run the acceptance test
 Stop external dependencies
 ```bash
 python local-sqs/elasticmq-wrapper.py stop
-python local-github/local-github-run.py stop
+python local-github/github-server-wrapper.py stop
 python local-s3/minio-wrapper.py stop
 ```
 
@@ -43,9 +43,22 @@ Build package
 ./gradlew clean test shadowJar
 ```
 
-Invoke function manually
+Create a Minio bucket locally
 ```
-SLS_DEBUG=* serverless invoke local --function srcs-github-export --path tdl/dpnt-sourcecode/src/test/resources/tdl/datapoint/sourcecode/sample_s3_event.json
+export TEST_S3_LOCATION=./local-s3/.storage/tdl-test-auth/TCH/user01
+mkdir -p $TEST_S3_LOCATION
+cp src/test/resources/test1.srcs $TEST_S3_LOCATION
+echo $TEST_S3_LOCATION && ls -l $TEST_S3_LOCATION
+```
+
+Invoke local function manually
+```
+AWS_ACCESS_KEY_ID=local_test_access_key \
+AWS_SECRET_KEY=local_test_secret_key \
+SLS_DEBUG=* \
+serverless invoke local \
+ --function srcs-github-export \
+ --path src/test/resources/tdl/datapoint/sourcecode/sample_s3_event.json
 ```
 
 ## Remote deployment
