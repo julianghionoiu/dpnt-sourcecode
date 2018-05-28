@@ -9,6 +9,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.eclipse.egit.github.core.Repository;
 import org.eclipse.jgit.api.Git;
 import tdl.datapoint.sourcecode.processing.LocalGitClient;
@@ -31,6 +32,8 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
     private LocalGitClient localGitClient;
     private SqsEventQueue participantEventQueue;
     private S3SrcsToGitExporter srcsToGitExporter;
+    private ObjectMapper jsonObjectMapper;
+
 
     private static String getEnv(ApplicationEnv key) {
         String env = System.getenv(key.name());
@@ -65,6 +68,8 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
 
         String queueUrl = getEnv(SQS_QUEUE_URL);
         participantEventQueue = new SqsEventQueue(client, queueUrl);
+
+        jsonObjectMapper = new ObjectMapper();
     }
 
     private static AmazonS3 createS3Client(String endpoint, String region) {
@@ -87,7 +92,7 @@ public class SourceCodeUploadHandler implements RequestHandler<Map<String, Objec
     @Override
     public String handleRequest(Map<String, Object> s3EventMap, Context context) {
         try {
-            handleS3Event(S3BucketEvent.from(s3EventMap));
+            handleS3Event(S3BucketEvent.from(s3EventMap, jsonObjectMapper));
             return "OK";
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, ex.getMessage(), ex);

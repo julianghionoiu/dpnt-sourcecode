@@ -26,14 +26,11 @@ public class LocalS3Bucket {
         return new LocalS3Bucket(s3Client);
     }
 
-    public String putObject(File object, String key) {
+    public S3Event putObject(File object, String key) {
         String bucket = "localbucket";
         createBucketIfNotExists(s3Client, bucket);
         s3Client.putObject(bucket, key, object);
-        return String.format("{\"Records\":[{\"s3\":" +
-                "{\"bucket\":{\"name\":\"%s\"}, " +
-                "\"object\":{\"key\":\"%s\"}}}" +
-                "]}", bucket, key);
+        return new S3Event(bucket, key);
     }
 
     @SuppressWarnings("deprecation")

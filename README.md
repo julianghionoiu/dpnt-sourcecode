@@ -89,5 +89,5 @@ Set the bucket and the key to some meaningful values.
 Invoke the dev lambda
 
 ```
-SLS_DEBUG=* serverless invoke --stage dev --function srcs-github-export --path src/test/resources/tdl/datapoint/sourcecode/sample_s3_event.json
+SLS_DEBUG=* serverless invoke --stage dev --function srcs-github-export --path src/test/resources/tdl/datapoint/sourcecode/sample_s3_via_sns_event.json
 ```

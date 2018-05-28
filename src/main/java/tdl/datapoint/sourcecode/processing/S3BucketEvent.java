@@ -1,5 +1,9 @@
 package tdl.datapoint.sourcecode.processing;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -14,15 +18,22 @@ public class S3BucketEvent {
     }
 
     @SuppressWarnings("unchecked")
-    public static S3BucketEvent from(Map<String, Object> request) {
+    public static S3BucketEvent from(Map<String, Object> request,
+                                     ObjectMapper jsonObjectMapper) throws IOException {
         if (request == null) {
             throw new IllegalArgumentException("No input provided");
         }
 
         Map<String, Object> record = ((List<Map<String, Object>>) mapGet(request, "Records")).get(0);
-        Map<String, Object> s3 = (Map<String, Object>) mapGet(record, "s3");
-        String  bucket = (String) mapGet((Map<String, Object>) s3.get("bucket"), "name");
-        String key = (String) mapGet((Map<String, Object>) s3.get("object"), "key");
+        Map<String, Object> sns = (Map<String, Object>) mapGet(record, "Sns");
+        String jsonS3Payload = (String) mapGet(sns, "Message");
+
+
+        JsonNode s3EventTree = jsonObjectMapper.readTree(jsonS3Payload);
+        JsonNode s3Object = s3EventTree.get("Records").get(0).get("s3");
+
+        String bucket = s3Object.get("bucket").get("name").asText();
+        String key = s3Object.get("object").get("key").asText();
         return new S3BucketEvent(bucket, key);
     }
 

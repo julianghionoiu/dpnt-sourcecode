@@ -1,6 +1,7 @@
 package tdl.datapoint.sourcecode;
 
 import com.amazonaws.services.lambda.runtime.Context;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.After;
@@ -40,6 +41,7 @@ public class SourcecodeDatapointAcceptanceTest {
     private SqsEventQueue sqsEventQueue;
     private LocalS3Bucket localS3Bucket;
     private Stack<SourceCodeUpdatedEvent> sourceCodeUpdatedEvents;
+    private ObjectMapper mapper;
 
     @Before
     public void setUp() throws EventProcessingException, IOException {
@@ -62,6 +64,8 @@ public class SourcecodeDatapointAcceptanceTest {
         sourceCodeUpdatedEvents = new Stack<>();
         queueEventHandlers.on(SourceCodeUpdatedEvent.class, sourceCodeUpdatedEvents::add);
         sqsEventQueue.subscribeToMessages(queueEventHandlers);
+
+        mapper = new ObjectMapper();
     }
 
     private static String getEnv(ApplicationEnv key) {
@@ -96,8 +100,9 @@ public class SourcecodeDatapointAcceptanceTest {
         TestSrcsFile srcs2 = new TestSrcsFile("test2.srcs");
 
         // When - Upload event happens
+        S3Event s3Event1 = localS3Bucket.putObject(srcs1.asFile(), s3destination);
         sourceCodeUploadHandler.handleRequest(
-                convertToMap(localS3Bucket.putObject(srcs1.asFile(), s3destination)),
+                convertToMap(wrapAsSNSEvent(s3Event1)),
                 NO_CONTEXT);
 
         // Then - Repo is created with the contents of the SRCS file
@@ -111,8 +116,9 @@ public class SourcecodeDatapointAcceptanceTest {
         assertThat(LocalGithub.getTags(repoUrl1), equalTo(srcs1.getTags()));
 
         // When - Another upload event happens
+        S3Event s3Event2 = localS3Bucket.putObject(srcs2.asFile(), s3destination);
         sourceCodeUploadHandler.handleRequest(
-                convertToMap(localS3Bucket.putObject(srcs2.asFile(), s3destination)),
+                convertToMap(wrapAsSNSEvent(s3Event2)),
                 NO_CONTEXT);
 
         // Then - The SRCS file is appended to the repo
@@ -122,6 +128,11 @@ public class SourcecodeDatapointAcceptanceTest {
         assertThat(repoUrl1, equalTo(repoUrl2));
         assertThat(LocalGithub.getCommitMessages(repoUrl2), equalTo(getCombinedMessages(srcs1, srcs2)));
         assertThat(LocalGithub.getTags(repoUrl2), equalTo(getCombinedTags(srcs1, srcs2)));
+    }
+
+    private String wrapAsSNSEvent(S3Event s3Event) throws JsonProcessingException {
+        SNSEvent snsEvent = new SNSEvent(mapper.writeValueAsString(s3Event.asJsonNode()));
+        return mapper.writeValueAsString(snsEvent.asJsonNode());
     }
 
     //~~~~~~~~~~ Helpers ~~~~~~~~~~~~~`
