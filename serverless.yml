@@ -10,7 +10,7 @@ provider:
   region: eu-west-2
 
   memorySize: 1536 # in MB
-  timeout: 120 # in seconds
+  timeout: 300 # in seconds
   versionFunctions: false
   environment: ${file(config/env.${self:provider.stage}.yml)}
 
