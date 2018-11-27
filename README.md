@@ -13,7 +13,7 @@ python local-s3/minio-wrapper.py start
 Run the acceptance test
 
 ```
-./gradlew --rerun-tasks test jacocoTestReport
+./gradlew --rerun-tasks test
 ```
 
 Stop external dependencies
